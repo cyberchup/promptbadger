@@ -12,7 +12,7 @@ references:
   - https://atlas.mitre.org/techniques/AML.T0051.000
 tags:
   atlas: [AML.T0051.000]
-  owasp: [LLM01:2025]
+  owasp: [LLM01:2026]
 severity: low
 confidence: 0.5
 detection:

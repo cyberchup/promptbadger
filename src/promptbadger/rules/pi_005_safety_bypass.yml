@@ -8,10 +8,10 @@ author: Dylan Wood
 date: 2026-09-30
 references:
   - https://atlas.mitre.org/techniques/AML.T0054
-  - https://genai.owasp.org/llmrisk/llm01-prompt-injection/
+  - https://genai.owasp.org/resource/owasp-genai-llm-top-10-2026/
 tags:
   atlas: [AML.T0051.000, AML.T0054]
-  owasp: [LLM01:2025]
+  owasp: [LLM01:2026]
 severity: high
 confidence: 0.75
 detection:

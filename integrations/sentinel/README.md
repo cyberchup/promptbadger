@@ -20,7 +20,7 @@ as columns (`verdict`, `score`, `detections`, `Source`, `input_sha256`, ...). Th
   "detections": [
     {"rule_id": "PI-001", "title": "Instruction override - ignore previous instructions",
      "severity": "high", "confidence": 0.9, "matched_text": "Ignore all previous instructions",
-     "span": [0, 32], "atlas": ["AML.T0051.000"], "owasp": ["LLM01:2025"]}
+     "span": [0, 32], "atlas": ["AML.T0051.000"], "owasp": ["LLM01:2026"]}
   ],
   "input_length": 62,
   "input_sha256": "…",
@@ -32,6 +32,17 @@ as columns (`verdict`, `score`, `detections`, `Source`, `input_sha256`, ...). Th
 From Python, `scan(text).to_event(source="chat-api")` returns the same event, so an app
 that embeds the library can log it directly. The analytics rule filters on
 `EventType == "PromptInjectionScan"`, so ship `to_event()` rather than `to_dict()`.
+
+OWASP IDs follow the 2026 edition of the LLM Top 10. Events written before promptbadger
+moved to it carry 2025 IDs, so every ID's year suffix differs and one ID changed meaning:
+`LLM07:2025` (System Prompt Leakage) is `LLM08:2026` (Hidden Context Exposure), while
+`LLM07:2026` is Misinformation. If you query across both periods, normalize first:
+
+```kql
+| mv-expand detection = detections
+| extend owasp = todynamic(replace_string(replace_string(tostring(detection.owasp),
+    "LLM07:2025", "LLM08:2026"), ":2025", ":2026"))
+```
 
 Raw prompt text is left out by default (it can contain personal data); add
 `--include-input` if your retention policy allows it.

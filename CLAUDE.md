@@ -47,9 +47,11 @@ weights or thresholds, rerun the eval and update the README numbers.
 - File `pi_NNN_short_name.yml`, id `PI-NNN`, unique. Next free id: PI-015.
 - Required: id, title, description, severity, confidence (0-1], detection.patterns.
 - Must have `tags.atlas` (e.g. AML.T0051.000 direct injection, AML.T0054 jailbreak,
-  AML.T0051.001 indirect, AML.T0057 data leakage), `tags.owasp` (LLM01:2025, LLM07:2025
-  for prompt leakage, LLM02:2025 for secret/sensitive-data requests),
-  `references`, `falsepositives`, and at least 2 `tests.match` and 2 `tests.no_match`.
+  AML.T0051.001 indirect, AML.T0057 data leakage), `tags.owasp` from the OWASP LLM Top 10
+  **2026** edition (LLM01:2026 prompt injection, LLM02:2026 secret/sensitive-data requests,
+  LLM08:2026 Hidden Context Exposure for system prompt leakage; LLM07:2026 is Misinformation,
+  so never map prompt leakage to LLM07), `references`, `falsepositives`, and at least
+  2 `tests.match` and 2 `tests.no_match`. A test rejects OWASP tags not of the form LLMnn:2026.
 - Patterns are Python regex, matched case-insensitively against normalized text. Use
   `(?-i:...)` for case-sensitive parts (e.g. DAN persona vs. the name Dan).
 - Quote any YAML test string containing `: ` or it parses as a dict (the loader rejects it).

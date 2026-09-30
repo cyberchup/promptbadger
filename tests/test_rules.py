@@ -4,6 +4,8 @@ These tests make sure each rule fires on its `match` examples and stays quiet on
 `no_match` examples, so a regex change that breaks a rule fails CI.
 """
 
+import re
+
 import pytest
 
 from promptbadger import Scanner, load_rules
@@ -27,7 +29,10 @@ def test_ruleset_loads():
 @pytest.mark.parametrize("rule", RULES, ids=lambda r: r.id)
 def test_rule_has_metadata_and_tests(rule):
     assert rule.tags.get("atlas"), f"{rule.id} has no MITRE ATLAS mapping"
-    assert rule.tags.get("owasp") or rule.id, f"{rule.id} has no OWASP mapping"
+    owasp = rule.tags.get("owasp") or []
+    assert owasp, f"{rule.id} has no OWASP mapping"
+    bad = [t for t in owasp if not re.fullmatch(r"LLM(0[1-9]|10):2026", t)]
+    assert not bad, f"{rule.id} has non-2026 OWASP IDs {bad} (use the 2026 edition; LLM07:2025 is LLM08:2026)"
     assert rule.references, f"{rule.id} has no references"
     assert rule.falsepositives, f"{rule.id} should document known false positives"
     assert len(rule.tests.get("match", [])) >= 2, f"{rule.id} needs at least 2 match tests"

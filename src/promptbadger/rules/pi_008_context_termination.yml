@@ -12,7 +12,7 @@ references:
   - https://huggingface.co/datasets/deepset/prompt-injections
 tags:
   atlas: [AML.T0051.000]
-  owasp: [LLM01:2025]
+  owasp: [LLM01:2026]
 severity: low
 confidence: 0.6
 detection:
