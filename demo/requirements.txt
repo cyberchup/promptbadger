@@ -1,0 +1,3 @@
+# Used by the Hugging Face Space. Replace YOUR-GITHUB-USERNAME after pushing the repo.
+gradio>=4.0
+promptbadger @ git+https://github.com/YOUR-GITHUB-USERNAME/promptbadger.git

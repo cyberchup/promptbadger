@@ -1,0 +1,25 @@
+// 1. Rule noise: which rules fire most on inputs that did NOT reach a malicious verdict?
+//    High counts here are tuning candidates (lower confidence or tighten the regex).
+PromptInjection_CL
+| where TimeGenerated > ago(7d)
+| where verdict != "malicious"
+| mv-expand detection = detections
+| summarize Hits = count(), Sources = dcount(Source) by RuleId = tostring(detection.rule_id)
+| order by Hits desc
+
+// 2. Probing behaviour: a source trying many distinct prompts that land just under the threshold.
+PromptInjection_CL
+| where TimeGenerated > ago(24h)
+| where verdict == "suspicious"
+| summarize DistinctPrompts = dcount(input_sha256), AvgScore = avg(score), MaxScore = max(score)
+    by Source, bin(TimeGenerated, 1h)
+| where DistinctPrompts >= 5
+| order by DistinctPrompts desc
+
+// 3. Technique coverage over time: how often each ATLAS technique is observed.
+PromptInjection_CL
+| where TimeGenerated > ago(30d)
+| mv-expand detection = detections
+| mv-expand technique = detection.atlas
+| summarize Count = count() by Technique = tostring(technique), bin(TimeGenerated, 1d)
+| render timechart

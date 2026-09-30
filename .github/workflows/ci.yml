@@ -1,0 +1,26 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.10", "3.11", "3.12"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Install
+        run: pip install -e ".[dev]"
+      - name: Unit tests
+        run: pytest -q
+      - name: Rule self-tests
+        run: promptbadger test-rules
+      - name: Detection regression gate
+        # Fails the build if a rule change drops F1 on the sample set below the baseline.
+        run: python eval/run_eval.py --misses 0 --min-f1 0.78

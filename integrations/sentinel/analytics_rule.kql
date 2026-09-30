@@ -1,0 +1,27 @@
+// promptbadger - Prompt injection detected in LLM application input
+// Suggested schedule: every 5 minutes, lookback 10 minutes
+// MITRE ATLAS: AML.T0051.000 (LLM Prompt Injection: Direct), AML.T0054 (LLM Jailbreak)
+// Entity mapping suggestion: Source -> Host/Application; add user identity if your app logs it
+let lookback = 10m;
+let alert_threshold = 50;   // matches promptbadger's default malicious threshold
+PromptInjection_CL
+| where TimeGenerated > ago(lookback)
+| where EventType == "PromptInjectionScan"
+| where verdict == "malicious" or score >= alert_threshold
+| mv-expand detection = detections
+| extend RuleId = tostring(detection.rule_id),
+         RuleTitle = tostring(detection.title),
+         RuleSeverity = tostring(detection.severity)
+| mv-expand technique = detection.atlas
+| extend Atlas = tostring(technique)
+| summarize
+    FirstSeen = min(TimeGenerated),
+    LastSeen = max(TimeGenerated),
+    MaxScore = max(score),
+    Attempts = dcount(input_sha256),
+    Rules = make_set(RuleId),
+    RuleTitles = make_set(RuleTitle),
+    AtlasTechniques = make_set(Atlas)
+    by Source
+| extend AlertSeverity = case(MaxScore >= 80 or Attempts >= 5, "High", "Medium")
+| project FirstSeen, LastSeen, Source, Attempts, MaxScore, AlertSeverity, Rules, RuleTitles, AtlasTechniques

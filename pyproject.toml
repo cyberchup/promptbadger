@@ -1,0 +1,35 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "promptbadger"
+version = "0.1.0"
+description = "Detection-as-code for LLM prompt injection: Sigma-style YAML rules mapped to MITRE ATLAS and OWASP LLM01."
+readme = "README.md"
+license = { text = "MIT" }
+authors = [{ name = "Dylan Wood" }]
+requires-python = ">=3.10"
+dependencies = ["PyYAML>=6.0"]
+keywords = ["llm", "prompt-injection", "security", "detection-engineering", "mitre-atlas"]
+classifiers = [
+  "Programming Language :: Python :: 3",
+  "License :: OSI Approved :: MIT License",
+  "Topic :: Security",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=7"]
+eval = ["datasets>=2.14"]
+
+[project.scripts]
+promptbadger = "promptbadger.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+promptbadger = ["rules/*.yml"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
