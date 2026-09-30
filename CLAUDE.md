@@ -44,7 +44,7 @@ weights or thresholds, rerun the eval and update the README numbers.
 
 ## Rule conventions (enforced by tests/test_rules.py)
 
-- File `pi_NNN_short_name.yml`, id `PI-NNN`, unique. Next free id: PI-012.
+- File `pi_NNN_short_name.yml`, id `PI-NNN`, unique. Next free id: PI-014.
 - Required: id, title, description, severity, confidence (0-1], detection.patterns.
 - Must have `tags.atlas` (e.g. AML.T0051.000 direct injection, AML.T0054 jailbreak,
   AML.T0051.001 indirect), `tags.owasp` (LLM01:2025, LLM07:2025 for prompt leakage),
@@ -65,6 +65,13 @@ weights or thresholds, rerun the eval and update the README numbers.
 - Public datasets (deepset/prompt-injections test split, and any added later) are
   held-out. Do not tune regexes against their specific rows. Report their numbers
   as-is in the README and `eval/results/`.
+- The deepset **train** split is a development set: studying its misses to write rules
+  is allowed (PI-012, PI-013 and the PI-002/003/008/009 extensions came from it). Report
+  train numbers only as dev numbers (`eval/results/deepset-train.md`), next to the test
+  numbers. Train and test share attack templates, so a fair generalisation number
+  needs an independent held-out dataset.
+- FP stress test: tatsu-lab/alpaca (52k benign instructions). Zero suspicious+ as of
+  PI-013; any new rule that alerts there needs a look before merging.
 - Known label disagreement: deepset marks benign persona prompts ("I want you to act as
   a debater") as injection. PI-011 is deliberately informational instead of chasing those.
 - Report precision, recall, F1 and FPR at both operating points (malicious-only and
@@ -73,6 +80,8 @@ weights or thresholds, rerun the eval and update the README numbers.
 ## Roadmap
 
 - v0.1 (done): regex rule engine, 11 direct-injection rules, CLI, JSON events, eval, CI, Sentinel content, demo
+- v0.1.x (done): PI-012 context reset, PI-013 RAG grounding override, broader DE/ES/FR/RU/BCS
+  coverage; developed on deepset train, measured on test (recall 0.200 -> 0.250, FPR 0)
 - v0.2: obfuscation. Decode base64/hex/ROT13 and rescan, homoglyph mapping, leetspeak
   folding, spaced-letter collapsing. Keep original-text spans reportable. Likely home:
   `normalize.py` producing multiple candidate views that all get scanned.
