@@ -1,3 +1,5 @@
+![promptbadger: detection-as-code for LLM prompt injection](docs/banner.jpg)
+
 # promptbadger 🦡
 
 [![CI](https://github.com/cyberchup/promptbadger/actions/workflows/ci.yml/badge.svg)](https://github.com/cyberchup/promptbadger/actions/workflows/ci.yml)
