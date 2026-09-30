@@ -3,9 +3,11 @@
 from __future__ import annotations
 
 import hashlib
+from collections.abc import Iterable
 from pathlib import Path
 
 from . import __version__
+from .canary import CANARY_WEIGHT, find_canaries
 from .models import (
     VERDICT_BENIGN,
     VERDICT_MALICIOUS,
@@ -63,7 +65,8 @@ class Scanner:
             owasp=rule.tags.get("owasp", []),
         )
 
-    def scan(self, text: str) -> ScanResult:
+    def scan(self, text: str, canaries: Iterable[str] = ()) -> ScanResult:
+        """Scan `text`. Pass `canaries` when scanning model output for system-prompt leaks."""
         normalized = normalize(text)
         detections: list[Detection] = []
         remaining = 1.0
@@ -72,6 +75,9 @@ class Scanner:
             if det:
                 detections.append(det)
                 remaining *= 1 - rule.weight
+        for det in find_canaries(normalized, canaries):
+            detections.append(det)
+            remaining *= 1 - CANARY_WEIGHT
 
         score = round((1 - remaining) * 100)
         if score >= self.malicious_threshold:
@@ -96,9 +102,9 @@ class Scanner:
 _default: Scanner | None = None
 
 
-def scan(text: str) -> ScanResult:
+def scan(text: str, canaries: Iterable[str] = ()) -> ScanResult:
     """Convenience function using the bundled rule pack."""
     global _default
     if _default is None:
         _default = Scanner()
-    return _default.scan(text)
+    return _default.scan(text, canaries)

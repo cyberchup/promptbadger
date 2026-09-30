@@ -1,0 +1,21 @@
+// promptbadger - Canary token leaked in LLM output (system prompt exposure)
+// Suggested schedule: every 5 minutes, lookback 10 minutes. Severity: High.
+// MITRE ATLAS: AML.T0056 (Extract LLM System Prompt). OWASP: LLM08:2026 Hidden Context Exposure.
+// Fires when a model response contains the random canary token planted in the system
+// prompt. The token never appears in normal text, so treat every hit as a true positive
+// until proven otherwise, and pull the same session's inputs to see how it was extracted.
+let lookback = 10m;
+PromptInjection_CL
+| where TimeGenerated > ago(lookback)
+| where EventType == "PromptInjectionScan"
+| mv-expand detection = detections
+| where tostring(detection.rule_id) == "PB-CANARY"
+| extend User = tostring(column_ifexists("User", "")),
+         SessionId = tostring(column_ifexists("SessionId", ""))
+| summarize
+    FirstSeen = min(TimeGenerated),
+    LastSeen = max(TimeGenerated),
+    Leaks = count(),
+    Sessions = make_set(SessionId, 20)
+    by Source, User
+| project FirstSeen, LastSeen, Source, User, Leaks, Sessions

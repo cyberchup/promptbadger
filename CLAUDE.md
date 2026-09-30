@@ -27,7 +27,8 @@ Development is on Windows (PowerShell, venv at `.venv`). CI runs on Ubuntu, Pyth
 - `src/promptbadger/scanner.py` - `Scanner.scan()`, noisy-OR scoring, verdict thresholds
 - `src/promptbadger/rules.py` - YAML loading and validation (`RuleError` on bad rules)
 - `src/promptbadger/normalize.py` - pre-match normalization (NFKC, invisible chars, whitespace)
-- `src/promptbadger/models.py` - `Rule`, `Detection`, `ScanResult`, severity weights
+- `src/promptbadger/models.py` - `Rule`, `Detection`, `ScanResult` (`to_event()` = the SIEM event), severity weights
+- `src/promptbadger/canary.py` - canary tokens for system-prompt leaks in model output (`PB-CANARY`, not a YAML rule)
 - `src/promptbadger/cli.py` - `scan`, `rules`, `test-rules` subcommands; exit 0/1/2
 - `src/promptbadger/rules/pi_NNN_*.yml` - the rule pack (packaged as package data)
 - `eval/` - `run_eval.py`, `data/sample.jsonl` (dev set), `results/` (reports)

@@ -4,6 +4,7 @@ Examples:
     promptbadger scan "Ignore all previous instructions"
     echo "some text" | promptbadger scan -
     promptbadger scan --file prompts.txt --jsonl          # one input per line, JSON Lines out
+    promptbadger scan --file replies.txt --direction output --canary pbc-3f9a1c0e7b2d4a68 --jsonl
     promptbadger rules                                      # list the loaded rule pack
     promptbadger test-rules                                 # run every rule's embedded tests
 """
@@ -55,11 +56,17 @@ def _cmd_scan(args) -> int:
     color = sys.stdout.isatty() and not args.no_color
 
     for source, text in inputs:
-        result = scanner.scan(text)
+        result = scanner.scan(text, canaries=args.canary or ())
         if result.verdict in fail_on:
             worst = EXIT_DETECTED
         if args.json or args.jsonl:
-            event = result.to_event(source, text if args.include_input else None)
+            event = result.to_event(
+                source,
+                text if args.include_input else None,
+                direction=args.direction,
+                user=args.user,
+                session_id=args.session_id,
+            )
             print(json.dumps(event, indent=None if args.jsonl else 2))
         else:
             _print_human(result, text, color)
@@ -104,6 +111,12 @@ def build_parser() -> argparse.ArgumentParser:
     out.add_argument("--json", action="store_true", help="pretty JSON output")
     out.add_argument("--jsonl", action="store_true", help="one JSON event per line (for log shipping)")
     s.add_argument("--include-input", action="store_true", help="include raw input text in JSON events")
+    s.add_argument("--canary", action="append", metavar="TOKEN",
+                   help="flag this canary token if it appears (repeatable); use when scanning model output")
+    s.add_argument("--direction", choices=["input", "output"], default="input",
+                   help="what is being scanned, recorded in JSON events (default: input)")
+    s.add_argument("--user", help="user identity to record in JSON events")
+    s.add_argument("--session-id", help="conversation/session ID to record in JSON events")
     s.add_argument("--malicious-threshold", type=int, default=DEFAULT_MALICIOUS_THRESHOLD)
     s.add_argument("--suspicious-threshold", type=int, default=DEFAULT_SUSPICIOUS_THRESHOLD)
     s.add_argument("--fail-on", choices=["malicious", "suspicious"], default="malicious",

@@ -1,13 +1,16 @@
 // promptbadger - Prompt injection detected in LLM application input
 // Suggested schedule: every 5 minutes, lookback 10 minutes
 // MITRE ATLAS: AML.T0051.000 (LLM Prompt Injection: Direct), AML.T0054 (LLM Jailbreak)
-// Entity mapping suggestion: Source -> Host/Application; add user identity if your app logs it
+// Entity mapping suggestion: Source -> Host/Application, User -> Account (when the app logs it)
+// Input scans only; leaked canaries in model output have their own rule (canary_leak.kql).
 let lookback = 10m;
 let alert_threshold = 50;   // matches promptbadger's default malicious threshold
 PromptInjection_CL
 | where TimeGenerated > ago(lookback)
 | where EventType == "PromptInjectionScan"
+| where tostring(column_ifexists("Direction", "input")) in ("input", "")
 | where verdict == "malicious" or score >= alert_threshold
+| extend User = tostring(column_ifexists("User", ""))
 | mv-expand detection = detections
 | extend RuleId = tostring(detection.rule_id),
          RuleTitle = tostring(detection.title),
@@ -22,6 +25,6 @@ PromptInjection_CL
     Rules = make_set(RuleId),
     RuleTitles = make_set(RuleTitle),
     AtlasTechniques = make_set(Atlas)
-    by Source
+    by Source, User
 | extend AlertSeverity = case(MaxScore >= 80 or Attempts >= 5, "High", "Medium")
-| project FirstSeen, LastSeen, Source, Attempts, MaxScore, AlertSeverity, Rules, RuleTitles, AtlasTechniques
+| project FirstSeen, LastSeen, Source, User, Attempts, MaxScore, AlertSeverity, Rules, RuleTitles, AtlasTechniques

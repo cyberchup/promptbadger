@@ -67,14 +67,30 @@ pytest                      # full test suite
 As a library, in front of your LLM call:
 
 ```python
-from promptbadger import scan
+from promptbadger import make_canary, scan
+
+CANARY = make_canary()  # once per deployment; plant it in the system prompt
+SYSTEM_PROMPT = f"You are the HR assistant. Internal reference: {CANARY}. ..."
+
+ids = dict(source="hr-chatbot", user=user.upn, session_id=conversation.id)
 
 result = scan(user_input)
+if result.verdict != "benign":
+    log.warning("possible prompt injection", extra=result.to_event(**ids))
 if result.verdict == "malicious":
     return "Request blocked."
-if result.verdict == "suspicious":
-    log.warning("possible prompt injection", extra=result.to_event(source="chat-api"))
+
+reply = llm(SYSTEM_PROMPT, user_input)
+leak = scan(reply, canaries=[CANARY])  # the token only comes back if the prompt leaked
+if leak.verdict != "benign":
+    log.error("system prompt leaked", extra=leak.to_event(direction="output", **ids))
+    return "Sorry, I can't help with that."
 ```
+
+The canary is a honeytoken: a random string that never occurs in normal text, so a
+hit is a true positive whatever wording the attacker used. `user` and `session_id` let
+the SIEM tie events to an identity and add up weak signals across a conversation
+(see [`integrations/sentinel/`](integrations/sentinel/)).
 
 Exit codes make it usable as a pipeline gate: `0` benign, `1` detection
 (`--fail-on suspicious` to be stricter), `2` error.
@@ -285,16 +301,19 @@ Full list in [`eval/results/sample.md`](eval/results/sample.md).
 
 ## SIEM integration
 
-`--jsonl` output is shaped as a log event (`TimeGenerated`, `EventType`, verdict,
-score, per-rule detections with ATLAS tags, SHA-256 of the input; raw text is opt-in).
-From Python, `result.to_event(source=...)` returns the same event.
-[`integrations/sentinel/`](integrations/sentinel/) has a Microsoft Sentinel scheduled
-analytics rule and hunting queries for rule-noise tuning and probing detection.
+`--jsonl` output is shaped as a log event (`TimeGenerated`, `EventType`, `Direction`,
+optional `User` and `SessionId`, verdict, score, per-rule detections with ATLAS tags,
+SHA-256 of the input; raw text is opt-in). From Python, `result.to_event(source=...)`
+returns the same event. [`integrations/sentinel/`](integrations/sentinel/) has two
+scheduled analytics rules (malicious prompts; canary token leaked in a model reply) and
+hunting queries for rule-noise tuning, probing, and slow-burn conversations where weak
+signals across one session add up to an attack.
 
 ## Roadmap
 
 - [x] **v0.1** Heuristic rule engine, 11 rules, CLI, JSON events, eval harness, CI, Sentinel content
 - [x] **v0.1.x** PI-012 (context reset), PI-013 (RAG grounding override), PI-014 (secret requests), wider non-English coverage
+- [x] Canary tokens for system-prompt leaks in model output; `User` / `SessionId` / `Direction` event fields and a per-session Sentinel hunting query
 - [ ] **v0.2** Obfuscation handling: base64/hex/ROT13 decode-and-rescan, homoglyphs, leetspeak, spaced letters
 - [ ] **v0.3** ML classifier layer (baseline TF-IDF + logistic regression, then a small transformer) combined with rule scores
 - [ ] **v0.4** Optional LLM-as-judge layer for inputs the fast layers mark suspicious

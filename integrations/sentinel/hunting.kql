@@ -23,3 +23,33 @@ PromptInjection_CL
 | mv-expand technique = detection.atlas
 | summarize Count = count() by Technique = tostring(technique), bin(TimeGenerated, 1d)
 | render timechart
+
+// 4. Slow-burn conversations: weak signals spread across one session, none alerting alone.
+//    Combines per-turn scores with the scanner's own noisy-OR (1 - prod(1 - score/100)),
+//    so three suspicious turns can add up to a malicious conversation. Needs SessionId,
+//    i.e. the app passes session_id= to to_event().
+let turns = PromptInjection_CL
+    | where TimeGenerated > ago(24h)
+    | where EventType == "PromptInjectionScan"
+    | extend SessionId = tostring(column_ifexists("SessionId", "")),
+             User = tostring(column_ifexists("User", ""))
+    | where isnotempty(SessionId);
+turns
+| extend KeepProb = 1.0 - todouble(min_of(score, 99)) / 100.0
+| summarize
+    Turns = count(),
+    FlaggedTurns = countif(verdict != "benign"),
+    MaxTurnScore = max(score),
+    LogKeep = sum(log(KeepProb)),
+    FirstSeen = min(TimeGenerated),
+    LastSeen = max(TimeGenerated)
+    by Source, User, SessionId
+| extend SessionScore = round(100.0 * (1.0 - exp(LogKeep)))
+| where FlaggedTurns >= 2 and MaxTurnScore < 50 and SessionScore >= 50
+| join kind=leftouter (
+    turns
+    | mv-expand detection = detections
+    | summarize RuleIds = make_set(tostring(detection.rule_id)) by SessionId
+  ) on SessionId
+| project FirstSeen, LastSeen, Source, User, SessionId, Turns, FlaggedTurns, MaxTurnScore, SessionScore, RuleIds
+| order by SessionScore desc

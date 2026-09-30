@@ -15,6 +15,7 @@ VERDICT_MALICIOUS = "malicious"
 
 # The Sentinel analytics rule and hunting queries filter on this value.
 EVENT_TYPE = "PromptInjectionScan"
+DIRECTIONS = ("input", "output")
 
 
 @dataclass
@@ -74,18 +75,36 @@ class ScanResult:
     def to_dict(self) -> dict:
         return asdict(self)
 
-    def to_event(self, source: str, input_text: str | None = None) -> dict:
+    def to_event(
+        self,
+        source: str,
+        input_text: str | None = None,
+        *,
+        direction: str = "input",
+        user: str | None = None,
+        session_id: str | None = None,
+    ) -> dict:
         """Shape the result as a SIEM log event: what `promptbadger scan --jsonl` emits.
 
-        The raw input is left out unless `input_text` is given; `input_sha256` still
-        lets you correlate repeated inputs without storing them.
+        `direction` is "input" for prompts and "output" for model responses (canary
+        checks). `user` and `session_id` let the SIEM join on identity and add up weak
+        signals across a conversation; they are only included when given. The raw
+        input is left out unless `input_text` is given; `input_sha256` still lets you
+        correlate repeated inputs without storing them.
         """
+        if direction not in DIRECTIONS:
+            raise ValueError(f"direction must be one of {DIRECTIONS}, not {direction!r}")
         event = {
             "TimeGenerated": datetime.now(timezone.utc).isoformat(),
             "EventType": EVENT_TYPE,
             "Source": source,
-            **self.to_dict(),
+            "Direction": direction,
         }
+        if user is not None:
+            event["User"] = user
+        if session_id is not None:
+            event["SessionId"] = session_id
+        event.update(self.to_dict())
         if input_text is not None:
             event["input"] = input_text
         return event

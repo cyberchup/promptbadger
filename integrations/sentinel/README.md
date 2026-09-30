@@ -15,6 +15,9 @@ as columns (`verdict`, `score`, `detections`, `Source`, `input_sha256`, ...). Th
   "TimeGenerated": "2026-09-30T18:40:00+00:00",
   "EventType": "PromptInjectionScan",
   "Source": "chat-api",
+  "Direction": "input",
+  "User": "jane.doe@contoso.com",
+  "SessionId": "c7d1e2f0",
   "verdict": "malicious",
   "score": 77,
   "detections": [
@@ -29,9 +32,20 @@ as columns (`verdict`, `score`, `detections`, `Source`, `input_sha256`, ...). Th
 }
 ```
 
-From Python, `scan(text).to_event(source="chat-api")` returns the same event, so an app
-that embeds the library can log it directly. The analytics rule filters on
-`EventType == "PromptInjectionScan"`, so ship `to_event()` rather than `to_dict()`.
+From Python, `scan(text).to_event(source="chat-api", user=upn, session_id=sid)` returns
+the same event, so an app that embeds the library can log it directly. The analytics
+rule filters on `EventType == "PromptInjectionScan"`, so ship `to_event()` rather than
+`to_dict()`.
+
+- `User` and `SessionId` are optional but are what make the SIEM useful: `User` joins
+  to `SigninLogs` / `IdentityInfo` and maps to an Account entity, and `SessionId` lets
+  hunting query 4 add up weak signals across a conversation.
+- `Direction` is `input` for prompts and `output` for model responses. Output scans
+  are where canary tokens are checked: plant `make_canary()` in the system prompt, scan
+  each reply with `scan(reply, canaries=[token])`, and `canary_leak.kql` alerts if the
+  token ever comes back.
+- The queries read these columns with `column_ifexists()`, so they still run on a table
+  created before the columns existed.
 
 OWASP IDs follow the 2026 edition of the LLM Top 10. Events written before promptbadger
 moved to it carry 2025 IDs, so every ID's year suffix differs and one ID changed meaning:
@@ -49,5 +63,7 @@ Raw prompt text is left out by default (it can contain personal data); add
 
 ## Files
 
-- [`analytics_rule.kql`](analytics_rule.kql): scheduled analytics rule query
-- [`hunting.kql`](hunting.kql): hunting queries for tuning and triage
+- [`analytics_rule.kql`](analytics_rule.kql): scheduled analytics rule for malicious prompts (input scans)
+- [`canary_leak.kql`](canary_leak.kql): scheduled analytics rule for a canary token leaked in model output
+- [`hunting.kql`](hunting.kql): hunting queries for rule noise, probing, technique trends and
+  slow-burn conversations (weak signals combined per `SessionId`)
