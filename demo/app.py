@@ -1,7 +1,7 @@
 """Gradio demo for Hugging Face Spaces.
 
 Local run:   pip install -e . gradio && python demo/app.py
-On a Space:  copy this file to the Space as app.py alongside demo/requirements.txt
+On a Space:  copy app.py, requirements.txt and README.md from demo/ to the Space root
 """
 
 import gradio as gr
@@ -40,7 +40,7 @@ with gr.Blocks(title="promptbadger - prompt injection detector") as demo:
         f"# promptbadger v{__version__}\n"
         "Detection-as-code for LLM prompt injection. Paste a prompt to see which rules fire, "
         "their MITRE ATLAS / OWASP mappings, and the combined risk score. "
-        "Rules are regex heuristics in v1, so obfuscated payloads (base64, leetspeak) are expected misses."
+        "Rules are regex heuristics in v0.1, so obfuscated payloads (base64, leetspeak) are expected misses."
     )
     inp = gr.Textbox(label="Prompt", lines=5, placeholder="Paste user input here...")
     btn = gr.Button("Scan", variant="primary")

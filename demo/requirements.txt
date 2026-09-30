@@ -1,3 +1,3 @@
-# Used by the Hugging Face Space.
-gradio>=4.0
-promptbadger @ git+https://github.com/cyberchup/promptbadger.git
+# Used by the Hugging Face Space. Gradio comes from sdk_version in README.md.
+# Pinned to a commit that passed CI; bump it deliberately when the rules change.
+promptbadger @ git+https://github.com/cyberchup/promptbadger.git@bb24af723b8d9d4fb00c7640d2c5eba284b9e9a5
