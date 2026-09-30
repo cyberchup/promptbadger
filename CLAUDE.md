@@ -62,9 +62,14 @@ weights or thresholds, rerun the eval and update the README numbers.
 - `eval/data/sample.jsonl` was written alongside the rules. It is a dev set and a
   regression gate, not a headline metric. Adding rows is fine; don't delete misses to
   improve the score.
-- Public datasets (deepset/prompt-injections test split, and any added later) are
-  held-out. Do not tune regexes against their specific rows. Report their numbers
-  as-is in the README and `eval/results/`.
+- Public datasets are held-out: deepset/prompt-injections test, xTRam1/safe-guard-prompt-injection
+  test, jackhhao/jailbreak-classification test (`--text-col prompt --label-col type
+  --positive jailbreak`). Do not tune regexes against their rows, including the misses
+  listed in their reports. Report their numbers as-is in the README and `eval/results/`.
+- Known gaps seen in held-out misses are listed under "Known gaps" in the README, not
+  patched. A rule written to close one must come from other data and be measured on a
+  held-out set it wasn't derived from; if a held-out set gets used for tuning, move it to
+  the development list and say so in the README.
 - The deepset **train** split is a development set: studying its misses to write rules
   is allowed (PI-012, PI-013 and the PI-002/003/008/009 extensions came from it). Report
   train numbers only as dev numbers (`eval/results/deepset-train.md`), next to the test
@@ -81,7 +86,8 @@ weights or thresholds, rerun the eval and update the README numbers.
 
 - v0.1 (done): regex rule engine, 11 direct-injection rules, CLI, JSON events, eval, CI, Sentinel content, demo
 - v0.1.x (done): PI-012 context reset, PI-013 RAG grounding override, broader DE/ES/FR/RU/BCS
-  coverage; developed on deepset train, measured on test (recall 0.200 -> 0.250, FPR 0)
+  coverage; developed on deepset train. Held-out recall: deepset test 0.200 -> 0.250,
+  safe-guard 0.260 -> 0.263, jailbreak-classification unchanged 0.655. FPR 0 everywhere.
 - v0.2: obfuscation. Decode base64/hex/ROT13 and rescan, homoglyph mapping, leetspeak
   folding, spaced-letter collapsing. Keep original-text spans reportable. Likely home:
   `normalize.py` producing multiple candidate views that all get scanned.

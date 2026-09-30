@@ -10,6 +10,8 @@ Usage:
     python eval/run_eval.py --dataset path/to/data.csv        # columns text,label
     python eval/run_eval.py --hf deepset/prompt-injections --split test   # needs `pip install datasets`
     python eval/run_eval.py --hf deepset/prompt-injections --report eval/results/deepset-test.md
+    python eval/run_eval.py --hf jackhhao/jailbreak-classification --text-col prompt \
+        --label-col type --positive jailbreak                 # other column names / string labels
 """
 
 from __future__ import annotations
@@ -41,13 +43,35 @@ def load_local(path: Path) -> list[tuple[str, int]]:
     return [(r["text"], int(r["label"])) for r in rows]
 
 
-def load_hf(name: str, split: str) -> list[tuple[str, int]]:
+def to_label(value, positive: str | None) -> int:
+    """Map a raw label to 1 (injection) / 0 (benign).
+
+    Without `positive`, labels must already be 0/1. With it, a label is 1 when its
+    string form equals `positive` (e.g. --positive jailbreak) and 0 otherwise.
+    """
+    if positive is None:
+        try:
+            label = int(value)
+        except ValueError:
+            raise SystemExit(f"label {value!r} is not numeric; pass --positive to map string labels")
+        if label not in (0, 1):
+            raise SystemExit(f"label {value!r} is not 0/1; pass --positive to map string labels")
+        return label
+    return int(str(value) == positive)
+
+
+def load_hf(
+    name: str, split: str, text_col: str = "text", label_col: str = "label", positive: str | None = None
+) -> list[tuple[str, int]]:
     try:
         from datasets import load_dataset
     except ImportError:
         raise SystemExit("Hugging Face datasets not installed: pip install -e '.[eval]'")
     ds = load_dataset(name, split=split)
-    return [(row["text"], int(row["label"])) for row in ds]
+    missing = {text_col, label_col} - set(ds.column_names)
+    if missing:
+        raise SystemExit(f"{name} has no column(s) {sorted(missing)}; columns are {ds.column_names}")
+    return [(row[text_col], to_label(row[label_col], positive)) for row in ds]
 
 
 def metrics(y_true: list[int], y_pred: list[int]) -> dict:
@@ -117,6 +141,9 @@ def main(argv=None) -> int:
     src.add_argument("--dataset", type=Path, help=".jsonl or .csv with text,label columns")
     src.add_argument("--hf", help="Hugging Face dataset name, e.g. deepset/prompt-injections")
     p.add_argument("--split", default="test", help="split for --hf (default: test)")
+    p.add_argument("--text-col", default="text", help="text column for --hf (default: text)")
+    p.add_argument("--label-col", default="label", help="label column for --hf (default: label)")
+    p.add_argument("--positive", help="label value meaning injection, for string labels (e.g. jailbreak)")
     p.add_argument("--rules", help="rules directory (default: bundled)")
     p.add_argument("--misses", type=int, default=25, help="list up to N false negatives/positives (0 to hide)")
     p.add_argument("--report", type=Path, help="also write the markdown report to this file")
@@ -124,7 +151,8 @@ def main(argv=None) -> int:
     args = p.parse_args(argv)
 
     if args.hf:
-        rows, name = load_hf(args.hf, args.split), f"{args.hf} ({args.split})"
+        rows = load_hf(args.hf, args.split, args.text_col, args.label_col, args.positive)
+        name = f"{args.hf} ({args.split})"
     else:
         path = args.dataset or DEFAULT_DATASET
         rows, name = load_local(path), path.name
