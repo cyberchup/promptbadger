@@ -123,6 +123,9 @@ with gr.Blocks(title="promptbadger - prompt injection detector") as demo:
         headers=["Rule", "Severity", "Title", "Matched text", "ATLAS / OWASP"],
         label="Detections",
         wrap=True,
+        # Fixed widths so the ATLAS / OWASP mappings wrap instead of being cut off; on
+        # narrow screens the table scrolls sideways rather than squeezing the headers.
+        column_widths=["76px", "94px", "266px", "206px", "316px"],
     )
     with gr.Accordion("SIEM event (what scan --jsonl emits)", open=False):
         gr.Markdown(
