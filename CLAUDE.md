@@ -44,10 +44,11 @@ weights or thresholds, rerun the eval and update the README numbers.
 
 ## Rule conventions (enforced by tests/test_rules.py)
 
-- File `pi_NNN_short_name.yml`, id `PI-NNN`, unique. Next free id: PI-014.
+- File `pi_NNN_short_name.yml`, id `PI-NNN`, unique. Next free id: PI-015.
 - Required: id, title, description, severity, confidence (0-1], detection.patterns.
 - Must have `tags.atlas` (e.g. AML.T0051.000 direct injection, AML.T0054 jailbreak,
-  AML.T0051.001 indirect), `tags.owasp` (LLM01:2025, LLM07:2025 for prompt leakage),
+  AML.T0051.001 indirect, AML.T0057 data leakage), `tags.owasp` (LLM01:2025, LLM07:2025
+  for prompt leakage, LLM02:2025 for secret/sensitive-data requests),
   `references`, `falsepositives`, and at least 2 `tests.match` and 2 `tests.no_match`.
 - Patterns are Python regex, matched case-insensitively against normalized text. Use
   `(?-i:...)` for case-sensitive parts (e.g. DAN persona vs. the name Dan).
@@ -76,7 +77,7 @@ weights or thresholds, rerun the eval and update the README numbers.
   numbers. Train and test share attack templates, so a fair generalisation number
   needs an independent held-out dataset.
 - FP stress test: tatsu-lab/alpaca (52k benign instructions). Zero suspicious+ as of
-  PI-013; any new rule that alerts there needs a look before merging.
+  PI-014; any new rule that alerts there needs a look before merging.
 - Known label disagreement: deepset marks benign persona prompts ("I want you to act as
   a debater") as injection. PI-011 is deliberately informational instead of chasing those.
 - Report precision, recall, F1 and FPR at both operating points (malicious-only and
@@ -88,6 +89,9 @@ weights or thresholds, rerun the eval and update the README numbers.
 - v0.1.x (done): PI-012 context reset, PI-013 RAG grounding override, broader DE/ES/FR/RU/BCS
   coverage; developed on deepset train. Held-out recall: deepset test 0.200 -> 0.250,
   safe-guard 0.260 -> 0.263, jailbreak-classification unchanged 0.655. FPR 0 everywhere.
+  Then PI-014 secret/credential requests (medium: suspicious alone, by design), from a local
+  test prompt; safe-guard 0.263 -> 0.282, flagged optimistic because similar safe-guard
+  misses had been read.
 - v0.2: obfuscation. Decode base64/hex/ROT13 and rescan, homoglyph mapping, leetspeak
   folding, spaced-letter collapsing. Keep original-text spans reportable. Likely home:
   `normalize.py` producing multiple candidate views that all get scanned.
