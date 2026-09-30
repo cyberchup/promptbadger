@@ -1,0 +1,34 @@
+// promptbadger - Data leaking out through an LLM response
+// Suggested schedule: every 5 minutes, lookback 10 minutes.
+// Covers output scans (scan_output / --direction output):
+//   PB-CANARY       canary token from the system prompt appeared in a reply
+//                   (ATLAS AML.T0056 Extract LLM System Prompt; OWASP LLM08:2026)
+//   PB-EXFIL-IMAGE  auto-loading image/iframe URL carrying data to an untrusted host
+//                   (ATLAS AML.T0077 LLM Response Rendering; OWASP LLM10:2026, LLM02:2026)
+//   PB-EXFIL-LINK   clickable link carrying data to an untrusted host (needs a click)
+//   PB-SMUGGLE      hidden Unicode tag characters in a reply (ASCII smuggling)
+// A canary hit or zero-click exfil is High; tune the others with the app's trusted-domain list.
+// Pull the same SessionId's input events to see which prompt or document caused it.
+let lookback = 10m;
+PromptInjection_CL
+| where TimeGenerated > ago(lookback)
+| where EventType == "PromptInjectionScan"
+| where tostring(column_ifexists("Direction", "")) == "output"
+| where verdict != "benign"
+| mv-expand detection = detections
+| extend RuleId = tostring(detection.rule_id),
+         Evidence = tostring(detection.matched_text),
+         User = tostring(column_ifexists("User", "")),
+         SessionId = tostring(column_ifexists("SessionId", ""))
+| where RuleId startswith "PB-"
+| summarize
+    FirstSeen = min(TimeGenerated),
+    LastSeen = max(TimeGenerated),
+    Replies = dcount(input_sha256),
+    Rules = make_set(RuleId),
+    Evidence = make_set(Evidence, 10),
+    Sessions = make_set(SessionId, 20)
+    by Source, User
+| extend AlertSeverity = iff(set_has_element(Rules, "PB-CANARY") or set_has_element(Rules, "PB-EXFIL-IMAGE")
+                             or set_has_element(Rules, "PB-SMUGGLE"), "High", "Medium")
+| project FirstSeen, LastSeen, Source, User, AlertSeverity, Replies, Rules, Evidence, Sessions

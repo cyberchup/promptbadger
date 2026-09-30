@@ -29,6 +29,9 @@ Development is on Windows (PowerShell, venv at `.venv`). CI runs on Ubuntu, Pyth
 - `src/promptbadger/normalize.py` - pre-match normalization (NFKC, invisible chars, whitespace)
 - `src/promptbadger/models.py` - `Rule`, `Detection`, `ScanResult` (`to_event()` = the SIEM event), severity weights
 - `src/promptbadger/canary.py` - canary tokens for system-prompt leaks in model output (`PB-CANARY`, not a YAML rule)
+- `src/promptbadger/exfil.py` - output checks: `PB-EXFIL-IMAGE` / `PB-EXFIL-LINK` (data in rendered URLs to
+  untrusted hosts; `trusted_domains` is the tuning knob) and `PB-SMUGGLE` (Unicode tag characters).
+  `Scanner.scan_output()` runs canary + exfil checks only, never the input PI-* rules.
 - `src/promptbadger/cli.py` - `scan`, `rules`, `test-rules` subcommands; exit 0/1/2
 - `src/promptbadger/rules/pi_NNN_*.yml` - the rule pack (packaged as package data)
 - `eval/` - `run_eval.py`, `data/sample.jsonl` (dev set), `results/` (reports)

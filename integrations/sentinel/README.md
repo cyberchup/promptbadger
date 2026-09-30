@@ -41,9 +41,9 @@ rule filters on `EventType == "PromptInjectionScan"`, so ship `to_event()` rathe
   to `SigninLogs` / `IdentityInfo` and maps to an Account entity, and `SessionId` lets
   hunting query 4 add up weak signals across a conversation.
 - `Direction` is `input` for prompts and `output` for model responses. Output scans
-  are where canary tokens are checked: plant `make_canary()` in the system prompt, scan
-  each reply with `scan(reply, canaries=[token])`, and `canary_leak.kql` alerts if the
-  token ever comes back.
+  (`scan_output(reply, canaries=[token])`) look for leaks: the system-prompt canary
+  coming back, image or link URLs smuggling data to an untrusted host (EchoLeak style),
+  and hidden Unicode tag characters. `output_leak.kql` alerts on them.
 - The queries read these columns with `column_ifexists()`, so they still run on a table
   created before the columns existed.
 
@@ -64,6 +64,7 @@ Raw prompt text is left out by default (it can contain personal data); add
 ## Files
 
 - [`analytics_rule.kql`](analytics_rule.kql): scheduled analytics rule for malicious prompts (input scans)
-- [`canary_leak.kql`](canary_leak.kql): scheduled analytics rule for a canary token leaked in model output
+- [`output_leak.kql`](output_leak.kql): scheduled analytics rule for leaks in model output (canary token,
+  zero-click image exfiltration, data-carrying links, ASCII smuggling)
 - [`hunting.kql`](hunting.kql): hunting queries for rule noise, probing, technique trends and
   slow-burn conversations (weak signals combined per `SessionId`)

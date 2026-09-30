@@ -4,7 +4,7 @@ Examples:
     promptbadger scan "Ignore all previous instructions"
     echo "some text" | promptbadger scan -
     promptbadger scan --file prompts.txt --jsonl          # one input per line, JSON Lines out
-    promptbadger scan --file replies.txt --direction output --canary pbc-3f9a1c0e7b2d4a68 --jsonl
+    promptbadger scan --file replies.txt --direction output --canary pbc-3f9a1c0e7b2d4a68         --trusted-domain contoso.com --jsonl                # model replies: leak checks
     promptbadger rules                                      # list the loaded rule pack
     promptbadger test-rules                                 # run every rule's embedded tests
 """
@@ -41,6 +41,7 @@ def _cmd_scan(args) -> int:
         rules_dir=args.rules,
         malicious_threshold=args.malicious_threshold,
         suspicious_threshold=args.suspicious_threshold,
+        trusted_domains=args.trusted_domain or (),
     )
 
     if args.file:
@@ -56,14 +57,16 @@ def _cmd_scan(args) -> int:
     color = sys.stdout.isatty() and not args.no_color
 
     for source, text in inputs:
-        result = scanner.scan(text, canaries=args.canary or ())
+        if args.direction == "output":
+            result = scanner.scan_output(text, canaries=args.canary or ())
+        else:
+            result = scanner.scan(text, canaries=args.canary or ())
         if result.verdict in fail_on:
             worst = EXIT_DETECTED
         if args.json or args.jsonl:
             event = result.to_event(
                 source,
                 text if args.include_input else None,
-                direction=args.direction,
                 user=args.user,
                 session_id=args.session_id,
             )
@@ -114,7 +117,10 @@ def build_parser() -> argparse.ArgumentParser:
     s.add_argument("--canary", action="append", metavar="TOKEN",
                    help="flag this canary token if it appears (repeatable); use when scanning model output")
     s.add_argument("--direction", choices=["input", "output"], default="input",
-                   help="what is being scanned, recorded in JSON events (default: input)")
+                   help="input: prompts vs. the rule pack; output: model replies vs. leak checks "
+                        "(canaries, URL exfiltration, hidden Unicode). Default: input")
+    s.add_argument("--trusted-domain", action="append", metavar="DOMAIN",
+                   help="host (and subdomains) the chat client may load from; skipped by output checks")
     s.add_argument("--user", help="user identity to record in JSON events")
     s.add_argument("--session-id", help="conversation/session ID to record in JSON events")
     s.add_argument("--malicious-threshold", type=int, default=DEFAULT_MALICIOUS_THRESHOLD)

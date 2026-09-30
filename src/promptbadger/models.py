@@ -66,7 +66,8 @@ class ScanResult:
     input_length: int
     input_sha256: str
     scanner_version: str
-    ruleset_size: int
+    ruleset_size: int  # rules (input) or leak checks (output) evaluated
+    direction: str = "input"  # "input" from scan(), "output" from scan_output()
 
     @property
     def is_injection(self) -> bool:
@@ -80,18 +81,20 @@ class ScanResult:
         source: str,
         input_text: str | None = None,
         *,
-        direction: str = "input",
+        direction: str | None = None,
         user: str | None = None,
         session_id: str | None = None,
     ) -> dict:
         """Shape the result as a SIEM log event: what `promptbadger scan --jsonl` emits.
 
-        `direction` is "input" for prompts and "output" for model responses (canary
-        checks). `user` and `session_id` let the SIEM join on identity and add up weak
-        signals across a conversation; they are only included when given. The raw
+        `direction` defaults to how the result was produced ("input" from `scan()`,
+        "output" from `scan_output()`). `user` and `session_id` let the SIEM join on
+        identity and add up weak signals across a conversation; they are only included
+        when given. The raw
         input is left out unless `input_text` is given; `input_sha256` still lets you
         correlate repeated inputs without storing them.
         """
+        direction = direction or self.direction
         if direction not in DIRECTIONS:
             raise ValueError(f"direction must be one of {DIRECTIONS}, not {direction!r}")
         event = {
@@ -104,7 +107,7 @@ class ScanResult:
             event["User"] = user
         if session_id is not None:
             event["SessionId"] = session_id
-        event.update(self.to_dict())
+        event.update({k: v for k, v in self.to_dict().items() if k != "direction"})
         if input_text is not None:
             event["input"] = input_text
         return event

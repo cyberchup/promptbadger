@@ -2,7 +2,7 @@
 // Suggested schedule: every 5 minutes, lookback 10 minutes
 // MITRE ATLAS: AML.T0051.000 (LLM Prompt Injection: Direct), AML.T0054 (LLM Jailbreak)
 // Entity mapping suggestion: Source -> Host/Application, User -> Account (when the app logs it)
-// Input scans only; leaked canaries in model output have their own rule (canary_leak.kql).
+// Input scans only; leaks in model output (canary, URL exfiltration) have their own rule (output_leak.kql).
 let lookback = 10m;
 let alert_threshold = 50;   // matches promptbadger's default malicious threshold
 PromptInjection_CL

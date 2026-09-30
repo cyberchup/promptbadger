@@ -1,7 +1,7 @@
 """Canary tokens: catch system-prompt leakage in model output, whatever the wording.
 
 Put a random marker in the system prompt (`make_canary()`), then scan the model's
-responses with `Scanner.scan(reply, canaries=[token])`. If the marker shows up,
+responses with `Scanner.scan_output(reply, canaries=[token])`. If the marker shows up,
 hidden context was exposed, no matter how the attacker phrased the request. It is
 the honeytoken idea applied to LLM apps: near-zero false positives, because the
 token is random and never appears in normal text.
@@ -17,14 +17,13 @@ import re
 import secrets
 from collections.abc import Iterable
 
-from .models import SEVERITY_WEIGHTS, Detection
+from .models import Detection
 
 CANARY_RULE_ID = "PB-CANARY"
 CANARY_TITLE = "Canary token leaked (system prompt exposure)"
-CANARY_SEVERITY = "critical"
+CANARY_SEVERITY = "critical"  # weight 0.85: malicious on its own
 CANARY_ATLAS = ["AML.T0056"]  # Extract LLM System Prompt
 CANARY_OWASP = ["LLM08:2026"]  # Hidden Context Exposure
-CANARY_WEIGHT = SEVERITY_WEIGHTS[CANARY_SEVERITY] / 100  # malicious on its own
 
 _MIN_CHARS = 12  # shorter markers could plausibly occur in normal text
 
