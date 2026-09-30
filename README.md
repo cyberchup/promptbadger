@@ -71,7 +71,7 @@ result = scan(user_input)
 if result.verdict == "malicious":
     return "Request blocked."
 if result.verdict == "suspicious":
-    log.warning("possible prompt injection", extra=result.to_dict())
+    log.warning("possible prompt injection", extra=result.to_event(source="chat-api"))
 ```
 
 Exit codes make it usable as a pipeline gate: `0` benign, `1` detection
@@ -280,6 +280,7 @@ Full list in [`eval/results/sample.md`](eval/results/sample.md).
 
 `--jsonl` output is shaped as a log event (`TimeGenerated`, `EventType`, verdict,
 score, per-rule detections with ATLAS tags, SHA-256 of the input; raw text is opt-in).
+From Python, `result.to_event(source=...)` returns the same event.
 [`integrations/sentinel/`](integrations/sentinel/) has a Microsoft Sentinel scheduled
 analytics rule and hunting queries for rule-noise tuning and probing detection.
 

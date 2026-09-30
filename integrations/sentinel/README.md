@@ -25,9 +25,13 @@ as columns (`verdict`, `score`, `detections`, `Source`, `input_sha256`, ...). Th
   "input_length": 62,
   "input_sha256": "…",
   "scanner_version": "0.1.0",
-  "ruleset_size": 11
+  "ruleset_size": 14
 }
 ```
+
+From Python, `scan(text).to_event(source="chat-api")` returns the same event, so an app
+that embeds the library can log it directly. The analytics rule filters on
+`EventType == "PromptInjectionScan"`, so ship `to_event()` rather than `to_dict()`.
 
 Raw prompt text is left out by default (it can contain personal data); add
 `--include-input` if your retention policy allows it.

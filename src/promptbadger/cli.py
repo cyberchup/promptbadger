@@ -13,7 +13,6 @@ from __future__ import annotations
 import argparse
 import json
 import sys
-from datetime import datetime, timezone
 
 from . import __version__
 from .normalize import normalize
@@ -23,19 +22,6 @@ from .scanner import DEFAULT_MALICIOUS_THRESHOLD, DEFAULT_SUSPICIOUS_THRESHOLD, 
 EXIT_BENIGN, EXIT_DETECTED, EXIT_ERROR = 0, 1, 2
 _COLORS = {"benign": "\033[32m", "suspicious": "\033[33m", "malicious": "\033[31m"}
 _RESET = "\033[0m"
-
-
-def _event(result, source: str, include_input: bool, text: str) -> dict:
-    """Shape a result as a log event suitable for shipping to a SIEM."""
-    event = {
-        "TimeGenerated": datetime.now(timezone.utc).isoformat(),
-        "EventType": "PromptInjectionScan",
-        "Source": source,
-        **result.to_dict(),
-    }
-    if include_input:
-        event["input"] = text
-    return event
 
 
 def _print_human(result, text: str, color: bool) -> None:
@@ -73,7 +59,7 @@ def _cmd_scan(args) -> int:
         if result.verdict in fail_on:
             worst = EXIT_DETECTED
         if args.json or args.jsonl:
-            event = _event(result, source, args.include_input, text)
+            event = result.to_event(source, text if args.include_input else None)
             print(json.dumps(event, indent=None if args.jsonl else 2))
         else:
             _print_human(result, text, color)

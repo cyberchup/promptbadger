@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import re
 from dataclasses import asdict, dataclass, field
+from datetime import datetime, timezone
 
 # Base weight each severity contributes to the risk score (0-100) before confidence.
 SEVERITY_WEIGHTS = {"informational": 5, "low": 15, "medium": 35, "high": 60, "critical": 85}
@@ -11,6 +12,9 @@ SEVERITY_WEIGHTS = {"informational": 5, "low": 15, "medium": 35, "high": 60, "cr
 VERDICT_BENIGN = "benign"
 VERDICT_SUSPICIOUS = "suspicious"
 VERDICT_MALICIOUS = "malicious"
+
+# The Sentinel analytics rule and hunting queries filter on this value.
+EVENT_TYPE = "PromptInjectionScan"
 
 
 @dataclass
@@ -69,3 +73,19 @@ class ScanResult:
 
     def to_dict(self) -> dict:
         return asdict(self)
+
+    def to_event(self, source: str, input_text: str | None = None) -> dict:
+        """Shape the result as a SIEM log event: what `promptbadger scan --jsonl` emits.
+
+        The raw input is left out unless `input_text` is given; `input_sha256` still
+        lets you correlate repeated inputs without storing them.
+        """
+        event = {
+            "TimeGenerated": datetime.now(timezone.utc).isoformat(),
+            "EventType": EVENT_TYPE,
+            "Source": source,
+            **self.to_dict(),
+        }
+        if input_text is not None:
+            event["input"] = input_text
+        return event
