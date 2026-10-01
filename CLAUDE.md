@@ -48,7 +48,7 @@ weights or thresholds, rerun the eval and update the README numbers.
 
 ## Rule conventions (enforced by tests/test_rules.py)
 
-- File `pi_NNN_short_name.yml`, id `PI-NNN`, unique. Next free id: PI-015.
+- File `pi_NNN_short_name.yml`, id `PI-NNN`, unique. Next free id: PI-018.
 - Required: id, title, description, severity, confidence (0-1], detection.patterns.
 - Must have `tags.atlas` (e.g. AML.T0051.000 direct injection, AML.T0054 jailbreak,
   AML.T0051.001 indirect, AML.T0057 data leakage), `tags.owasp` from the OWASP LLM Top 10
@@ -63,6 +63,9 @@ weights or thresholds, rerun the eval and update the README numbers.
 - Every new rule needs a hard-negative `no_match` case: benign text a careless regex
   would hit (security discussions, "enable developer mode on my phone", "ignore my last message").
 - Set `status: experimental` for new rules until they've been measured on held-out data.
+- `scope` says where a rule runs: `[input, context]` by default. Use `[context]` for
+  patterns that are normal in a user's own prompt but a red flag inside retrieved content
+  (addressing the AI, hidden markup). Output checks live in code (`exfil.py`, `canary.py`).
 
 ## Evaluation discipline
 
@@ -77,6 +80,10 @@ weights or thresholds, rerun the eval and update the README numbers.
   patched. A rule written to close one must come from other data and be measured on a
   held-out set it wasn't derived from; if a held-out set gets used for tuning, move it to
   the development list and say so in the README.
+- Indirect injection is measured with `scan_context` on microsoft/llmail-inject-challenge
+  phase 2 (`eval/prepare_llmail.py`, then `run_eval.py --dataset ... --direction context`).
+  Held-out: PI-015 to PI-017 were written before any row was read. Context FP sets:
+  SetFit/enron_spam ham, Dolly contexts (0 flagged as of PI-017).
 - The deepset **train** split is a development set: studying its misses to write rules
   is allowed (PI-012, PI-013 and the PI-002/003/008/009 extensions came from it). Report
   train numbers only as dev numbers (`eval/results/deepset-train.md`), next to the test
@@ -104,7 +111,8 @@ weights or thresholds, rerun the eval and update the README numbers.
 - v0.3: ML classifier layer (TF-IDF + logistic regression baseline, then a small
   transformer), combined with rule scores. Train only on train splits.
 - v0.4: optional LLM-as-judge for inputs the fast layers mark suspicious.
-- v0.5: indirect injection (AML.T0051.001) for retrieved documents, web pages, tool output.
+- v0.5 (done): indirect injection. `scan_context()`, rule `scope` field, PI-015 to PI-017 (context
+  only), measured on LLMail-Inject: recall 0.149 -> 0.163, 0 FP on 21k benign emails/docs.
 - Later: FastAPI service for use as a gateway sidecar; publish to PyPI (name is free).
 
 ## Style

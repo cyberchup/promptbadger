@@ -147,12 +147,17 @@ def find_exfil(text: str, trusted_domains: Iterable[str] = ()) -> list[Detection
                 detections.append(_detection(rule_id, title, severity, confidence, m, url, _ATLAS_RENDERING, _OWASP_EXFIL))
                 break
 
+    return detections + find_smuggling(text)
+
+
+def find_smuggling(text: str) -> list[Detection]:
+    """Unicode tag characters hiding text (ASCII smuggling), in replies or in content."""
     for m in _TAG_RUN.finditer(text):
         if m.start() > 0 and text[m.start() - 1] == _BLACK_FLAG:
             continue  # a legitimate emoji flag sequence
         hidden = "".join(chr(ord(c) - 0xE0000) for c in m.group(0) if 0xE0020 <= ord(c) <= 0xE007E)
         if hidden:
-            detections.append(
+            return [
                 _detection(
                     SMUGGLE_ID,
                     "Hidden Unicode tag characters (ASCII smuggling)",
@@ -163,6 +168,5 @@ def find_exfil(text: str, trusted_domains: Iterable[str] = ()) -> list[Detection
                     ["AML.T0057"],  # LLM Data Leakage
                     ["LLM01:2026", "LLM10:2026"],
                 )
-            )
-            break
-    return detections
+            ]
+    return []

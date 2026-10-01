@@ -13,6 +13,10 @@ from .models import SEVERITY_WEIGHTS, Rule
 REQUIRED_FIELDS = ("id", "title", "description", "severity", "confidence", "detection")
 VALID_STATUS = {"experimental", "test", "stable", "deprecated"}
 ID_PATTERN = re.compile(r"^PI-\d{3}$")
+# Where a rule runs: "input" = user prompts (scan), "context" = content the model reads
+# (retrieved documents, emails, web pages, tool output; scan_context).
+VALID_SCOPES = ("input", "context")
+DEFAULT_SCOPE = ["input", "context"]
 
 
 class RuleError(ValueError):
@@ -55,6 +59,11 @@ def _parse_rule(data: dict, source: str) -> Rule:
         except re.error as exc:
             raise RuleError(f"{source}: bad regex {p!r}: {exc}") from exc
 
+    scope = data.get("scope", DEFAULT_SCOPE)
+    scope = [scope] if isinstance(scope, str) else list(scope or [])
+    if not scope or any(s not in VALID_SCOPES for s in scope):
+        raise RuleError(f"{source}: scope must be a non-empty list from {list(VALID_SCOPES)}")
+
     tests = data.get("tests") or {}
     for kind, cases in tests.items():
         for case in cases or []:
@@ -71,6 +80,7 @@ def _parse_rule(data: dict, source: str) -> Rule:
         patterns=compiled,
         condition=condition,
         status=status,
+        scope=scope,
         tags={k: [str(v) for v in (vals or [])] for k, vals in tags.items()},
         references=list(data.get("references") or []),
         falsepositives=list(data.get("falsepositives") or []),

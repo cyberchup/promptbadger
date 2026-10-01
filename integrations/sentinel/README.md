@@ -40,6 +40,10 @@ rule filters on `EventType == "PromptInjectionScan"`, so ship `to_event()` rathe
 - `User` and `SessionId` are optional but are what make the SIEM useful: `User` joins
   to `SigninLogs` / `IdentityInfo` and maps to an Account entity, and `SessionId` lets
   hunting query 4 add up weak signals across a conversation.
+- `Direction: context` marks retrieved content (documents, emails, web pages, tool output)
+  scanned with `scan_context()`, with optional `ContentType` and `ContentId` (URL, message
+  ID, sender). For these the user is usually the victim, so `context_injection.kql`
+  groups by the content, and hunting query 5 links poisoned content to a later leak.
 - `Direction` is `input` for prompts and `output` for model responses. Output scans
   (`scan_output(reply, canaries=[token])`) look for leaks: the system-prompt canary
   coming back, image or link URLs smuggling data to an untrusted host (EchoLeak style),
@@ -64,7 +68,10 @@ Raw prompt text is left out by default (it can contain personal data); add
 ## Files
 
 - [`analytics_rule.kql`](analytics_rule.kql): scheduled analytics rule for malicious prompts (input scans)
+- [`context_injection.kql`](context_injection.kql): scheduled analytics rule for indirect injection in
+  content the model read, grouped by ContentId (one poisoned email or page = one incident)
 - [`output_leak.kql`](output_leak.kql): scheduled analytics rule for leaks in model output (canary token,
   zero-click image exfiltration, data-carrying links, ASCII smuggling)
 - [`hunting.kql`](hunting.kql): hunting queries for rule noise, probing, technique trends and
-  slow-burn conversations (weak signals combined per `SessionId`)
+  slow-burn conversations (weak signals combined per `SessionId`), and the injection-to-leak
+  chain (poisoned content followed by a leaking reply in the same session)

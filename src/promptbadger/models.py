@@ -15,7 +15,7 @@ VERDICT_MALICIOUS = "malicious"
 
 # The Sentinel analytics rule and hunting queries filter on this value.
 EVENT_TYPE = "PromptInjectionScan"
-DIRECTIONS = ("input", "output")
+DIRECTIONS = ("input", "context", "output")
 
 
 @dataclass
@@ -30,6 +30,7 @@ class Rule:
     patterns: list[re.Pattern]
     condition: str = "any"  # "any" or "all"
     status: str = "experimental"
+    scope: list[str] = field(default_factory=lambda: ["input", "context"])
     tags: dict[str, list[str]] = field(default_factory=dict)
     references: list[str] = field(default_factory=list)
     falsepositives: list[str] = field(default_factory=list)
@@ -67,7 +68,7 @@ class ScanResult:
     input_sha256: str
     scanner_version: str
     ruleset_size: int  # rules (input) or leak checks (output) evaluated
-    direction: str = "input"  # "input" from scan(), "output" from scan_output()
+    direction: str = "input"  # from scan() / scan_context() / scan_output()
 
     @property
     def is_injection(self) -> bool:
@@ -84,13 +85,18 @@ class ScanResult:
         direction: str | None = None,
         user: str | None = None,
         session_id: str | None = None,
+        content_type: str | None = None,
+        content_id: str | None = None,
     ) -> dict:
         """Shape the result as a SIEM log event: what `promptbadger scan --jsonl` emits.
 
         `direction` defaults to how the result was produced ("input" from `scan()`,
         "output" from `scan_output()`). `user` and `session_id` let the SIEM join on
-        identity and add up weak signals across a conversation; they are only included
-        when given. The raw
+        identity and add up weak signals across a conversation. For context scans,
+        `content_type` (document, email, web, tool_output) and `content_id` (URL, message
+        ID, sender, file path) identify where the injected text came from: there the
+        user is usually the victim, so alerts should pivot on the content. Optional
+        fields are only included when given. The raw
         input is left out unless `input_text` is given; `input_sha256` still lets you
         correlate repeated inputs without storing them.
         """
@@ -107,6 +113,10 @@ class ScanResult:
             event["User"] = user
         if session_id is not None:
             event["SessionId"] = session_id
+        if content_type is not None:
+            event["ContentType"] = content_type
+        if content_id is not None:
+            event["ContentId"] = content_id
         event.update({k: v for k, v in self.to_dict().items() if k != "direction"})
         if input_text is not None:
             event["input"] = input_text

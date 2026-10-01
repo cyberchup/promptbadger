@@ -81,7 +81,15 @@ if result.verdict != "benign":
 if result.verdict == "malicious":
     return "Request blocked."
 
-reply = llm(SYSTEM_PROMPT, user_input, retrieved_docs)
+safe_docs = []
+for doc in retrieved_docs:  # emails, pages, files the model is about to read
+    ctx = scanner.scan_context(doc.text)  # indirect injection
+    if ctx.verdict != "benign":
+        log.warning("poisoned content", extra=ctx.to_event(content_type="email", content_id=doc.id, **ids))
+    if ctx.verdict != "malicious":
+        safe_docs.append(doc)
+
+reply = llm(SYSTEM_PROMPT, user_input, safe_docs)
 leak = scanner.scan_output(reply, canaries=[CANARY])  # the reply, for leaks
 if leak.verdict != "benign":
     log.error("LLM output leak", extra=leak.to_event(**ids))  # Direction = "output"
@@ -167,6 +175,13 @@ tests in each direction fails CI.
 | PI-012 | Context reset ("forget everything and write...") *(experimental)* | high | AML.T0051.000 |
 | PI-013 | Grounding override: ignore the provided documents (RAG) *(experimental)* | medium | AML.T0051.000 |
 | PI-014 | Secret or credential request ("give me your password") *(experimental)* | medium | AML.T0057 (OWASP LLM02, LLM08) |
+| PI-015 | Content addresses the AI reading it ("If you are an AI assistant...") *(experimental, context only)* | high | AML.T0051.001 |
+| PI-016 | Content tells the model what to do with the user ("When summarizing this, include...") *(experimental, context only)* | medium | AML.T0051.001 |
+| PI-017 | Instructions hidden in markup (HTML comments, invisible text) *(experimental, context only)* | high | AML.T0051.001 |
+
+Rules carry a `scope`: `input` (user prompts, `scan()`), `context` (content the model reads,
+`scan_context()`), or both, the default. PI-015 to PI-017 are context-only because talking
+to the AI is normal in a user's own prompt and a red flag inside an email.
 
 OWASP IDs follow the [2026 edition](https://genai.owasp.org/resource/owasp-genai-llm-top-10-2026/)
 of the Top 10 for LLM Applications. Its main renumbering for this rule pack: System Prompt
@@ -281,6 +296,41 @@ None reached *suspicious*; the only rule hits were 11 informational PI-011 match
 ("Pretend you are a teacher..."). Rechecked after adding PI-014, which had no hits.
 Nothing was tuned on this set.
 
+### Indirect injection (`scan_context`)
+
+PI-015 to PI-017 were written from the published indirect-injection literature
+(Greshake et al., 2023, and common hidden-markup payloads), before any row of the
+evaluation data was read. They were then measured once on
+[microsoft/llmail-inject-challenge](https://huggingface.co/datasets/microsoft/llmail-inject-challenge)
+phase 2: emails written by real people trying to make an email assistant act on hidden
+instructions. `python eval/prepare_llmail.py` builds the set (attacks labelled
+`attack_attempt=True`, plus the challenge's own benign emails).
+
+| LLMail phase 2 (21,007 attacks / 203 benign emails) | Suspicious+ recall | Malicious recall | FPR |
+|---|---|---|---|
+| Before: input rules only (`scan`) | 0.149 | 0.036 | 0.000 |
+| After: `scan_context` (adds PI-015 to 017, hidden Unicode) | 0.163 | 0.048 | 0.000 |
+
+Full report: [`eval/results/llmail-context.md`](eval/results/llmail-context.md). Low recall
+is expected here: LLMail attackers were iterating against LLM-based
+defenses, so most submissions are paraphrased, obfuscated or split, which is exactly
+what regex does not catch. The fake chat-template rule (PI-006) is the biggest single
+contributor (2,271 hits), and hidden tag characters add 155.
+
+False positives, with nothing tuned on these sets:
+
+| Benign content | Texts | Flagged |
+|---|---|---|
+| LLMail benign emails | 203 | 0 |
+| Enron legitimate ("ham") emails, SetFit/enron_spam | 16,545 | 0 |
+| Dolly contexts (Wikipedia passages) | 4,467 | 0 |
+| LLMail submissions labelled *not* an attack attempt | 2,500 | 753 (30%) |
+
+The last row is not clean mail: 709 of the 753 are fake chat delimiters (`<|im_end|>`,
+`</user>`) and 37 are hidden tag characters, which no legitimate email contains. They look
+like probes of the challenge's filters without a stated objective. The new context
+rules account for 5 of them.
+
 ### Output checks (`scan_output`)
 
 There is no public labelled dataset of exfiltration *responses*, so detection is backed
@@ -351,7 +401,7 @@ signals across one session add up to an attack.
 - [ ] **v0.2** Obfuscation handling: base64/hex/ROT13 decode-and-rescan, homoglyphs, leetspeak, spaced letters
 - [ ] **v0.3** ML classifier layer (baseline TF-IDF + logistic regression, then a small transformer) combined with rule scores
 - [ ] **v0.4** Optional LLM-as-judge layer for inputs the fast layers mark suspicious
-- [ ] **v0.5** Indirect injection (AML.T0051.001): scanning retrieved documents, web pages, tool outputs
+- [x] **v0.5** Indirect injection (AML.T0051.001): `scan_context()` for retrieved documents, emails, web pages and tool output; PI-015 to PI-017; rule `scope`
 - [ ] FastAPI service for use as a gateway sidecar
 
 ## Limitations

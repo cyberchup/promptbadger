@@ -10,8 +10,8 @@ Usage:
     python eval/run_eval.py --dataset path/to/data.csv        # columns text,label
     python eval/run_eval.py --hf deepset/prompt-injections --split test   # needs `pip install datasets`
     python eval/run_eval.py --hf deepset/prompt-injections --report eval/results/deepset-test.md
-    python eval/run_eval.py --hf jackhhao/jailbreak-classification --text-col prompt \
-        --label-col type --positive jailbreak                 # other column names / string labels
+    python eval/run_eval.py --hf jackhhao/jailbreak-classification --text-col prompt --label-col type --positive jailbreak
+    python eval/run_eval.py --dataset llmail.jsonl --direction context   # indirect injection (content scans)
 """
 
 from __future__ import annotations
@@ -86,9 +86,10 @@ def metrics(y_true: list[int], y_pred: list[int]) -> dict:
     return dict(tp=tp, fp=fp, tn=tn, fn=fn, precision=precision, recall=recall, f1=f1, fpr=fpr)
 
 
-def run(rows: list[tuple[str, int]], scanner: Scanner):
+def run(rows: list[tuple[str, int]], scanner: Scanner, direction: str = "input"):
+    scan = scanner.scan_context if direction == "context" else scanner.scan
     start = time.perf_counter()
-    results = [scanner.scan(text) for text, _ in rows]
+    results = [scan(text) for text, _ in rows]
     elapsed_ms = (time.perf_counter() - start) * 1000
     y_true = [label for _, label in rows]
     points = {
@@ -144,6 +145,8 @@ def main(argv=None) -> int:
     p.add_argument("--text-col", default="text", help="text column for --hf (default: text)")
     p.add_argument("--label-col", default="label", help="label column for --hf (default: label)")
     p.add_argument("--positive", help="label value meaning injection, for string labels (e.g. jailbreak)")
+    p.add_argument("--direction", choices=["input", "context"], default="input",
+                   help="input: prompts via scan(); context: documents/emails via scan_context()")
     p.add_argument("--rules", help="rules directory (default: bundled)")
     p.add_argument("--misses", type=int, default=25, help="list up to N false negatives/positives (0 to hide)")
     p.add_argument("--report", type=Path, help="also write the markdown report to this file")
@@ -158,7 +161,9 @@ def main(argv=None) -> int:
         rows, name = load_local(path), path.name
 
     scanner = Scanner(rules_dir=args.rules)
-    results, points, hits, fp_hits, ms = run(rows, scanner)
+    results, points, hits, fp_hits, ms = run(rows, scanner, args.direction)
+    if args.direction == "context":
+        name += " [context scan]"
     report = render(name, rows, results, points, hits, fp_hits, ms, args.misses)
     print(report)
     if args.report:

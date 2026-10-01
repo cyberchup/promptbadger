@@ -8,7 +8,7 @@ from pathlib import Path
 
 from . import __version__
 from .canary import find_canaries
-from .exfil import OUTPUT_CHECKS, find_exfil
+from .exfil import OUTPUT_CHECKS, find_exfil, find_smuggling
 from .models import (
     SEVERITY_WEIGHTS,
     VERDICT_BENIGN,
@@ -34,9 +34,13 @@ class Scanner:
     risk-based alerting in a SIEM: many low-fidelity hits on one entity can
     together cross the alert threshold.
 
-    `scan()` checks prompts (input) against the YAML rule pack. `scan_output()` checks
-    model replies for leaks: canary tokens and exfiltration through rendered URLs or
-    hidden Unicode. `trusted_domains` are hosts the chat client may load from freely.
+    Three entry points, one per place text crosses into or out of the model:
+    - `scan()`: user prompts, against rules scoped to "input".
+    - `scan_context()`: content the model will read (retrieved documents, emails, web
+      pages, tool output), against rules scoped to "context" plus hidden-Unicode checks.
+      This is where indirect prompt injection (ATLAS AML.T0051.001) shows up.
+    - `scan_output()`: model replies, for leaks (canary tokens, data in rendered URLs,
+      hidden Unicode). `trusted_domains` are hosts the chat client may load from.
     """
 
     def __init__(
@@ -48,6 +52,8 @@ class Scanner:
         trusted_domains: Iterable[str] = (),
     ):
         self.rules = rules if rules is not None else load_rules(rules_dir)
+        self.input_rules = [r for r in self.rules if "input" in r.scope]
+        self.context_rules = [r for r in self.rules if "context" in r.scope]
         if not 0 <= suspicious_threshold <= malicious_threshold <= 100:
             raise ValueError("need 0 <= suspicious_threshold <= malicious_threshold <= 100")
         self.malicious_threshold = malicious_threshold
@@ -76,9 +82,16 @@ class Scanner:
     def scan(self, text: str, canaries: Iterable[str] = ()) -> ScanResult:
         """Scan a prompt. (`canaries` is kept for compatibility; prefer `scan_output`.)"""
         normalized = normalize(text)
-        detections = [d for d in (self.match_rule(r, normalized) for r in self.rules) if d]
+        detections = [d for d in (self.match_rule(r, normalized) for r in self.input_rules) if d]
         detections += find_canaries(normalized, canaries)
-        return self._result(text, detections, "input", len(self.rules))
+        return self._result(text, detections, "input", len(self.input_rules))
+
+    def scan_context(self, text: str) -> ScanResult:
+        """Scan content the model will read (document, email, web page, tool output)."""
+        normalized = normalize(text)
+        detections = [d for d in (self.match_rule(r, normalized) for r in self.context_rules) if d]
+        detections += find_smuggling(text)
+        return self._result(text, detections, "context", len(self.context_rules) + 1)
 
     def scan_output(self, text: str, canaries: Iterable[str] = ()) -> ScanResult:
         """Scan a model reply for leaks. The input rule pack is not run on output."""
@@ -124,6 +137,11 @@ def _scanner() -> Scanner:
 def scan(text: str, canaries: Iterable[str] = ()) -> ScanResult:
     """Convenience function using the bundled rule pack."""
     return _scanner().scan(text, canaries)
+
+
+def scan_context(text: str) -> ScanResult:
+    """Convenience function: check retrieved content for indirect prompt injection."""
+    return _scanner().scan_context(text)
 
 
 def scan_output(text: str, canaries: Iterable[str] = ()) -> ScanResult:

@@ -4,7 +4,8 @@ Examples:
     promptbadger scan "Ignore all previous instructions"
     echo "some text" | promptbadger scan -
     promptbadger scan --file prompts.txt --jsonl          # one input per line, JSON Lines out
-    promptbadger scan --file replies.txt --direction output --canary pbc-3f9a1c0e7b2d4a68         --trusted-domain contoso.com --jsonl                # model replies: leak checks
+    promptbadger scan --file email.txt --direction context --content-type email --jsonl
+    promptbadger scan --file replies.txt --direction output --canary TOKEN --jsonl   # model replies
     promptbadger rules                                      # list the loaded rule pack
     promptbadger test-rules                                 # run every rule's embedded tests
 """
@@ -44,7 +45,11 @@ def _cmd_scan(args) -> int:
         trusted_domains=args.trusted_domain or (),
     )
 
-    if args.file:
+    if args.file and args.direction == "context":
+        # A document, email or page is one unit: hidden markup can span lines.
+        with open(args.file, encoding="utf-8") as fh:
+            inputs = [(args.file, fh.read())]
+    elif args.file:
         with open(args.file, encoding="utf-8") as fh:
             inputs = [(f"{args.file}:{i}", line.rstrip("\n")) for i, line in enumerate(fh, 1) if line.strip()]
     elif args.text == "-" or args.text is None:
@@ -59,6 +64,8 @@ def _cmd_scan(args) -> int:
     for source, text in inputs:
         if args.direction == "output":
             result = scanner.scan_output(text, canaries=args.canary or ())
+        elif args.direction == "context":
+            result = scanner.scan_context(text)
         else:
             result = scanner.scan(text, canaries=args.canary or ())
         if result.verdict in fail_on:
@@ -69,6 +76,8 @@ def _cmd_scan(args) -> int:
                 text if args.include_input else None,
                 user=args.user,
                 session_id=args.session_id,
+                content_type=args.content_type,
+                content_id=args.content_id,
             )
             print(json.dumps(event, indent=None if args.jsonl else 2))
         else:
@@ -109,16 +118,19 @@ def build_parser() -> argparse.ArgumentParser:
 
     s = sub.add_parser("scan", help="scan text, a file, or stdin")
     s.add_argument("text", nargs="?", help="text to scan, or '-' for stdin")
-    s.add_argument("-f", "--file", help="scan each non-empty line of a file")
+    s.add_argument("-f", "--file", help="scan each non-empty line of a file (the whole file for --direction context)")
     out = s.add_mutually_exclusive_group()
     out.add_argument("--json", action="store_true", help="pretty JSON output")
     out.add_argument("--jsonl", action="store_true", help="one JSON event per line (for log shipping)")
     s.add_argument("--include-input", action="store_true", help="include raw input text in JSON events")
     s.add_argument("--canary", action="append", metavar="TOKEN",
                    help="flag this canary token if it appears (repeatable); use when scanning model output")
-    s.add_argument("--direction", choices=["input", "output"], default="input",
-                   help="input: prompts vs. the rule pack; output: model replies vs. leak checks "
-                        "(canaries, URL exfiltration, hidden Unicode). Default: input")
+    s.add_argument("--direction", choices=["input", "context", "output"], default="input",
+                   help="input: user prompts; context: documents/emails/web pages/tool output the "
+                        "model will read (indirect injection); output: model replies (canaries, URL "
+                        "exfiltration, hidden Unicode). Default: input")
+    s.add_argument("--content-type", help="for context scans: document, email, web, tool_output ...")
+    s.add_argument("--content-id", help="for context scans: URL, message ID, sender or path of the content")
     s.add_argument("--trusted-domain", action="append", metavar="DOMAIN",
                    help="host (and subdomains) the chat client may load from; skipped by output checks")
     s.add_argument("--user", help="user identity to record in JSON events")

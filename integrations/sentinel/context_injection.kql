@@ -1,0 +1,35 @@
+// promptbadger - Indirect prompt injection in content the LLM read
+// Suggested schedule: every 15 minutes, lookback 1 hour.
+// MITRE ATLAS: AML.T0051.001 (LLM Prompt Injection: Indirect). OWASP: LLM01:2026.
+// Fires on context scans (scan_context / --direction context): retrieved documents,
+// emails, web pages and tool output that carry instructions for the model.
+// Pivot: the CONTENT is the attacker's foothold; the users who read it are the victims.
+// One poisoned email or page hitting many users is one incident, grouped by ContentId.
+// Entity mapping suggestion: ContentId -> URL / MailMessage / File, Users -> Account.
+let lookback = 1h;
+PromptInjection_CL
+| where TimeGenerated > ago(lookback)
+| where EventType == "PromptInjectionScan"
+| where tostring(column_ifexists("Direction", "")) == "context"
+| where verdict != "benign"
+| extend ContentId = tostring(column_ifexists("ContentId", "")),
+         ContentType = tostring(column_ifexists("ContentType", "")),
+         User = tostring(column_ifexists("User", ""))
+| extend ContentKey = iff(isnotempty(ContentId), ContentId, input_sha256)
+| mv-expand detection = detections
+| summarize
+    FirstSeen = min(TimeGenerated),
+    LastSeen = max(TimeGenerated),
+    MaxScore = max(score),
+    Verdicts = make_set(verdict),
+    Rules = make_set(tostring(detection.rule_id)),
+    Evidence = make_set(tostring(detection.matched_text), 5),
+    AffectedUsers = make_set(User, 50),
+    Sources = make_set(Source)
+    by ContentKey, ContentType
+| extend UserCount = array_length(AffectedUsers)
+| extend AlertSeverity = case(MaxScore >= 50 and UserCount > 1, "High",
+                              MaxScore >= 50, "Medium",
+                              "Low")
+| project FirstSeen, LastSeen, ContentType, ContentKey, AlertSeverity, MaxScore, UserCount,
+          AffectedUsers, Rules, Evidence, Sources

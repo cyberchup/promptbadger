@@ -53,3 +53,30 @@ turns
   ) on SessionId
 | project FirstSeen, LastSeen, Source, User, SessionId, Turns, FlaggedTurns, MaxTurnScore, SessionScore, RuleIds
 | order by SessionScore desc
+
+// 5. Injection-to-leak chain (EchoLeak pattern): poisoned content was read, then a reply in
+//    the same session leaked data (canary, data-carrying URL, hidden Unicode). Either half
+//    alone may be noise; together they are the full attack. Needs SessionId on both events.
+let window = 24h;
+let poisoned = PromptInjection_CL
+    | where TimeGenerated > ago(window)
+    | where tostring(column_ifexists("Direction", "")) == "context" and verdict != "benign"
+    | extend SessionId = tostring(column_ifexists("SessionId", "")),
+             ContentId = tostring(column_ifexists("ContentId", ""))
+    | where isnotempty(SessionId)
+    | mv-expand detection = detections
+    | summarize ContextSeen = min(TimeGenerated), Contents = make_set(ContentId, 10),
+                ContextRules = make_set(tostring(detection.rule_id)) by SessionId;
+PromptInjection_CL
+| where TimeGenerated > ago(window)
+| where tostring(column_ifexists("Direction", "")) == "output" and verdict != "benign"
+| extend SessionId = tostring(column_ifexists("SessionId", "")),
+         User = tostring(column_ifexists("User", ""))
+| where isnotempty(SessionId)
+| mv-expand detection = detections
+| summarize LeakSeen = min(TimeGenerated), LeakRules = make_set(tostring(detection.rule_id)),
+            Evidence = make_set(tostring(detection.matched_text), 5) by SessionId, User, Source
+| join kind=inner poisoned on SessionId
+| where LeakSeen >= ContextSeen
+| project ContextSeen, LeakSeen, Source, User, SessionId, Contents, ContextRules, LeakRules, Evidence
+| order by LeakSeen desc
