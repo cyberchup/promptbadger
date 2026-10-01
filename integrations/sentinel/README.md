@@ -23,11 +23,12 @@ as columns (`verdict`, `score`, `detections`, `Source`, `input_sha256`, ...). Th
   "detections": [
     {"rule_id": "PI-001", "title": "Instruction override - ignore previous instructions",
      "severity": "high", "confidence": 0.9, "matched_text": "Ignore all previous instructions",
-     "span": [0, 32], "atlas": ["AML.T0051.000"], "owasp": ["LLM01:2026"]}
+     "span": [0, 32], "atlas": ["AML.T0051.000"], "owasp": ["LLM01:2026"],
+     "view": "original", "decoded": null}
   ],
   "input_length": 62,
   "input_sha256": "…",
-  "scanner_version": "0.1.0",
+  "scanner_version": "0.2.0",
   "ruleset_size": 14
 }
 ```
@@ -48,6 +49,10 @@ rule filters on `EventType == "PromptInjectionScan"`, so ship `to_event()` rathe
   (`scan_output(reply, canaries=[token])`) look for leaks: the system-prompt canary
   coming back, image or link URLs smuggling data to an untrusted host (EchoLeak style),
   and hidden Unicode tag characters. `output_leak.kql` alerts on them.
+- Each detection has a `view`: `original`, or the decoding it needed (`leetspeak`,
+  `decoded`, `spacing`, `homoglyph`, `rot13`, ...), with the decoded text in `decoded` and
+  ATLAS AML.T0068 added. `matched_text` and `span` always point at the raw input, so an
+  analyst sees what was actually sent. Hunting query 6 lists obfuscation in use.
 - The queries read these columns with `column_ifexists()`, so they still run on a table
   created before the columns existed.
 
@@ -73,5 +78,6 @@ Raw prompt text is left out by default (it can contain personal data); add
 - [`output_leak.kql`](output_leak.kql): scheduled analytics rule for leaks in model output (canary token,
   zero-click image exfiltration, data-carrying links, ASCII smuggling)
 - [`hunting.kql`](hunting.kql): hunting queries for rule noise, probing, technique trends and
-  slow-burn conversations (weak signals combined per `SessionId`), and the injection-to-leak
-  chain (poisoned content followed by a leaking reply in the same session)
+  slow-burn conversations (weak signals combined per `SessionId`), the injection-to-leak
+  chain (poisoned content followed by a leaking reply in the same session), and obfuscation
+  in use (detections that only matched after decoding)

@@ -80,3 +80,25 @@ PromptInjection_CL
 | where LeakSeen >= ContextSeen
 | project ContextSeen, LeakSeen, Source, User, SessionId, Contents, ContextRules, LeakRules, Evidence
 | order by LeakSeen desc
+
+// 6. Obfuscation in use: detections that only matched after decoding (leetspeak, base64,
+//    letter spacing, homoglyphs, rot13, ...; ATLAS AML.T0068). Someone disguising an
+//    injection is testing your filters on purpose, which is worth more attention than a
+//    plain attempt. `decoded` shows what the payload said.
+PromptInjection_CL
+| where TimeGenerated > ago(7d)
+| where EventType == "PromptInjectionScan"
+| mv-expand detection = detections
+| extend View = tostring(detection.view)
+| where isnotempty(View) and View != "original"
+| extend User = tostring(column_ifexists("User", "")),
+         Direction = tostring(column_ifexists("Direction", "input"))
+| summarize
+    Attempts = dcount(input_sha256),
+    Techniques = make_set(View),
+    Rules = make_set(tostring(detection.rule_id)),
+    Decoded = make_set(tostring(detection.decoded), 5),
+    FirstSeen = min(TimeGenerated),
+    LastSeen = max(TimeGenerated)
+    by Source, User, Direction
+| order by Attempts desc

@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "promptbadger"
-version = "0.1.0"
+version = "0.2.0"
 description = "Detection-as-code for LLM prompt injection: Sigma-style YAML rules mapped to MITRE ATLAS and OWASP LLM01."
 readme = "README.md"
 license = { text = "MIT" }

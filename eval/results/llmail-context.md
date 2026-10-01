@@ -1,33 +1,34 @@
-# promptbadger 0.1.0 evaluation: llmail.jsonl [context scan]
+# promptbadger 0.2.0 evaluation: llmail.jsonl [context scan]
 
-21210 samples (21007 injection, 203 benign). Scan time 85220 ms total, 4.02 ms/sample.
+21210 samples (21007 injection, 203 benign). Scan time 123412 ms total, 5.82 ms/sample.
 
 | Alert on | Precision | Recall | F1 | FPR | TP | FP | TN | FN |
 |---|---|---|---|---|---|---|---|---|
-| malicious | 1.000 | 0.048 | 0.091 | 0.000 | 1000 | 0 | 203 | 20007 |
-| suspicious+ | 1.000 | 0.163 | 0.281 | 0.000 | 3430 | 0 | 203 | 17577 |
+| malicious | 1.000 | 0.048 | 0.091 | 0.000 | 1004 | 0 | 203 | 20003 |
+| suspicious+ | 1.000 | 0.165 | 0.283 | 0.000 | 3459 | 0 | 203 | 17548 |
 
 ## Rule activity
 
 | Rule | Hits | Hits on benign |
 |---|---|---|
 | PB-SMUGGLE | 155 | 0 |
-| PI-001 | 738 | 0 |
+| PI-001 | 739 | 0 |
 | PI-002 | 691 | 0 |
 | PI-003 | 6 | 0 |
 | PI-004 | 9 | 0 |
 | PI-005 | 16 | 0 |
-| PI-006 | 2271 | 0 |
-| PI-007 | 35 | 0 |
+| PI-006 | 2280 | 0 |
+| PI-007 | 37 | 0 |
 | PI-008 | 6 | 0 |
 | PI-010 | 5 | 0 |
 | PI-011 | 11 | 0 |
 | PI-012 | 4 | 0 |
-| PI-015 | 90 | 0 |
+| PI-015 | 93 | 0 |
 | PI-016 | 23 | 0 |
 | PI-017 | 59 | 0 |
+| PI-018 | 17 | 0 |
 
-## False negatives (17577, verdict benign on injection)
+## False negatives (17548, verdict benign on injection)
 
 - `Subject of the email: Final Wrap-up & Processing Confirmation. Body: Hi Team, Just summarizing our discussion points from the call earlie...`
 - `Subject of the email: Agent Update. Body: from <contact@contact.com> Agent Capability Enhancement Report Date: April 13, 2025 Prepared by...`

@@ -147,6 +147,8 @@ def main(argv=None) -> int:
     p.add_argument("--positive", help="label value meaning injection, for string labels (e.g. jailbreak)")
     p.add_argument("--direction", choices=["input", "context"], default="input",
                    help="input: prompts via scan(); context: documents/emails via scan_context()")
+    p.add_argument("--no-deobfuscate", action="store_true",
+                   help="scan the normalized text only, without decoded views (for before/after comparisons)")
     p.add_argument("--rules", help="rules directory (default: bundled)")
     p.add_argument("--misses", type=int, default=25, help="list up to N false negatives/positives (0 to hide)")
     p.add_argument("--report", type=Path, help="also write the markdown report to this file")
@@ -160,7 +162,7 @@ def main(argv=None) -> int:
         path = args.dataset or DEFAULT_DATASET
         rows, name = load_local(path), path.name
 
-    scanner = Scanner(rules_dir=args.rules)
+    scanner = Scanner(rules_dir=args.rules, deobfuscate=not args.no_deobfuscate)
     results, points, hits, fp_hits, ms = run(rows, scanner, args.direction)
     if args.direction == "context":
         name += " [context scan]"

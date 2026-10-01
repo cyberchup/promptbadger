@@ -17,6 +17,7 @@ promptbadger test-rules          # each rule's embedded match/no_match cases
 promptbadger scan "text"         # human output; --json / --jsonl for events
 python eval/run_eval.py          # sample set; CI gate is --min-f1 0.78
 python eval/run_eval.py --hf deepset/prompt-injections --split test --report eval/results/deepset-test.md
+python eval/obfuscation_eval.py  # detection under obfuscation, views off vs on
 python demo/app.py               # Gradio demo (needs gradio installed)
 ```
 
@@ -26,7 +27,12 @@ Development is on Windows (PowerShell, venv at `.venv`). CI runs on Ubuntu, Pyth
 
 - `src/promptbadger/scanner.py` - `Scanner.scan()`, noisy-OR scoring, verdict thresholds
 - `src/promptbadger/rules.py` - YAML loading and validation (`RuleError` on bad rules)
-- `src/promptbadger/normalize.py` - pre-match normalization (NFKC, invisible chars, whitespace)
+- `src/promptbadger/normalize.py` - pre-match normalization (NFKC, invisible chars, whitespace);
+  `normalize()` output never changes (rule tests depend on it). `Mapped` carries per-char raw
+  offsets, built lazily, so detections report spans in the raw input.
+- `src/promptbadger/deobfuscate.py` - v0.2 decode-and-rescan views (tags, unescaped, decoded,
+  spacing, homoglyph, leetspeak, rot13, reversed). A rule fires once, in the first view that
+  matches; non-original matches add ATLAS AML.T0068 and set Detection.view/decoded.
 - `src/promptbadger/models.py` - `Rule`, `Detection`, `ScanResult` (`to_event()` = the SIEM event), severity weights
 - `src/promptbadger/canary.py` - canary tokens for system-prompt leaks in model output (`PB-CANARY`, not a YAML rule)
 - `src/promptbadger/exfil.py` - output checks: `PB-EXFIL-IMAGE` / `PB-EXFIL-LINK` (data in rendered URLs to
@@ -48,7 +54,7 @@ weights or thresholds, rerun the eval and update the README numbers.
 
 ## Rule conventions (enforced by tests/test_rules.py)
 
-- File `pi_NNN_short_name.yml`, id `PI-NNN`, unique. Next free id: PI-018.
+- File `pi_NNN_short_name.yml`, id `PI-NNN`, unique. Next free id: PI-019.
 - Required: id, title, description, severity, confidence (0-1], detection.patterns.
 - Must have `tags.atlas` (e.g. AML.T0051.000 direct injection, AML.T0054 jailbreak,
   AML.T0051.001 indirect, AML.T0057 data leakage), `tags.owasp` from the OWASP LLM Top 10
@@ -91,6 +97,9 @@ weights or thresholds, rerun the eval and update the README numbers.
   needs an independent held-out dataset.
 - FP stress test: tatsu-lab/alpaca (52k benign instructions). Zero suspicious+ as of
   PI-014; any new rule that alerts there needs a look before merging.
+- `eval/obfuscation_eval.py` applies obfuscation transforms to held-out injections that
+  are already detected in plain form. It guided decoder development, so report it as a
+  development measurement of technique coverage, never as recall.
 - Known label disagreement: deepset marks benign persona prompts ("I want you to act as
   a debater") as injection. PI-011 is deliberately informational instead of chasing those.
 - Report precision, recall, F1 and FPR at both operating points (malicious-only and
@@ -105,9 +114,9 @@ weights or thresholds, rerun the eval and update the README numbers.
   Then PI-014 secret/credential requests (medium: suspicious alone, by design), from a local
   test prompt; safe-guard 0.263 -> 0.282, flagged optimistic because similar safe-guard
   misses had been read.
-- v0.2: obfuscation. Decode base64/hex/ROT13 and rescan, homoglyph mapping, leetspeak
-  folding, spaced-letter collapsing. Keep original-text spans reportable. Likely home:
-  `normalize.py` producing multiple candidate views that all get scanned.
+- v0.2 (done, version 0.2.0): obfuscation views in `deobfuscate.py`, original-text spans,
+  PI-018. Held-out metrics unchanged (no obfuscation in those sets); robustness table in
+  `eval/results/obfuscation.md`; 0 FP on 73k benign texts; ~+50% scan time on long email.
 - v0.3: ML classifier layer (TF-IDF + logistic regression baseline, then a small
   transformer), combined with rule scores. Train only on train splits.
 - v0.4: optional LLM-as-judge for inputs the fast layers mark suspicious.

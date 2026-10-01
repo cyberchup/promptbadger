@@ -1,6 +1,6 @@
 """promptbadger: detection-as-code for LLM prompt injection."""
 
-__version__ = "0.1.0"
+__version__ = "0.2.0"
 
 from .canary import make_canary  # noqa: E402
 from .models import Detection, Rule, ScanResult  # noqa: E402

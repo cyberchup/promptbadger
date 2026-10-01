@@ -1,6 +1,6 @@
-# promptbadger 0.1.0 evaluation: xTRam1/safe-guard-prompt-injection (test)
+# promptbadger 0.2.0 evaluation: xTRam1/safe-guard-prompt-injection (test)
 
-2060 samples (650 injection, 1410 benign). Scan time 1666 ms total, 0.81 ms/sample.
+2060 samples (650 injection, 1410 benign). Scan time 2197 ms total, 1.07 ms/sample.
 
 | Alert on | Precision | Recall | F1 | FPR | TP | FP | TN | FN |
 |---|---|---|---|---|---|---|---|---|

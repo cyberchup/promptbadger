@@ -1,6 +1,6 @@
-# promptbadger 0.1.0 evaluation: deepset/prompt-injections (test)
+# promptbadger 0.2.0 evaluation: deepset/prompt-injections (test)
 
-116 samples (60 injection, 56 benign). Scan time 28 ms total, 0.24 ms/sample.
+116 samples (60 injection, 56 benign). Scan time 42 ms total, 0.36 ms/sample.
 
 | Alert on | Precision | Recall | F1 | FPR | TP | FP | TN | FN |
 |---|---|---|---|---|---|---|---|---|
