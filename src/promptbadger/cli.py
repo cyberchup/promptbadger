@@ -35,6 +35,8 @@ def _print_human(result, text: str, color: bool) -> None:
         tags = ", ".join(d.atlas + d.owasp)
         print(f"  - {d.rule_id} [{d.severity}] {d.title}  ({tags})")
         print(f"      matched: {d.matched_text!r}")
+        if d.view != "original":
+            print(f"      via {d.view}: {d.decoded!r}")
 
 
 def _cmd_scan(args) -> int:

@@ -51,10 +51,12 @@ class Detection:
     title: str
     severity: str
     confidence: float
-    matched_text: str
-    span: tuple[int, int]
+    matched_text: str  # the raw input text that matched (whitespace collapsed)
+    span: tuple[int, int]  # offsets into the raw input
     atlas: list[str]
     owasp: list[str]
+    view: str = "original"  # deobfuscation view the rule fired in ("leetspeak", "decoded", ...)
+    decoded: str | None = None  # the text the rule saw in that view, when not "original"
 
 
 @dataclass
