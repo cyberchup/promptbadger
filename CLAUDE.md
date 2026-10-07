@@ -18,6 +18,8 @@ promptbadger scan "text"         # human output; --json / --jsonl for events
 python eval/run_eval.py          # sample set; CI gate is --min-f1 0.78
 python eval/run_eval.py --hf deepset/prompt-injections --split test --report eval/results/deepset-test.md
 python eval/obfuscation_eval.py  # detection under obfuscation, views off vs on
+python eval/train_classifier.py  # retrain PB-ML (needs .[train]); writes model + training report
+python eval/classifier_eval.py   # held-out sets x {rules, classifier, both} -> classifier-heldout.md
 python demo/app.py               # Gradio demo (needs gradio installed)
 ```
 
@@ -38,9 +40,14 @@ Development is on Windows (PowerShell, venv at `.venv`). CI runs on Ubuntu, Pyth
 - `src/promptbadger/exfil.py` - output checks: `PB-EXFIL-IMAGE` / `PB-EXFIL-LINK` (data in rendered URLs to
   untrusted hosts; `trusted_domains` is the tuning knob) and `PB-SMUGGLE` (Unicode tag characters).
   `Scanner.scan_output()` runs canary + exfil checks only, never the input PI-* rules.
+- `src/promptbadger/classifier.py` - v0.3 `PB-ML`: TF-IDF + logistic regression, pure-Python inference
+  from `data/classifier.json.gz`. `features()` is the tokenizer for training and inference alike.
+  Opt-in (`Scanner(classifier=True)`, `--ml`), `scan()` only. confidence = probability; medium
+  from p 0.572, high from p 0.834 (where 35p reaches 20 and 60p reaches 50); nothing below.
 - `src/promptbadger/cli.py` - `scan`, `rules`, `test-rules` subcommands; exit 0/1/2
 - `src/promptbadger/rules/pi_NNN_*.yml` - the rule pack (packaged as package data)
-- `eval/` - `run_eval.py`, `data/sample.jsonl` (dev set), `results/` (reports)
+- `eval/` - `run_eval.py`, `data/sample.jsonl` (dev set), `results/` (reports),
+  `train_classifier.py` and `classifier_eval.py` (v0.3; protocol in `results/classifier-protocol.md`)
 - `integrations/sentinel/` - analytics rule and hunting KQL for the JSONL events
 - `demo/` - Gradio app for the Hugging Face Space (installs promptbadger from GitHub)
 
@@ -95,7 +102,18 @@ weights or thresholds, rerun the eval and update the README numbers.
   train numbers only as dev numbers (`eval/results/deepset-train.md`), next to the test
   numbers. Train and test share attack templates, so a fair generalisation number
   needs an independent held-out dataset.
-- FP stress test: tatsu-lab/alpaca (52k benign instructions). Zero suspicious+ as of
+- v0.3 added two independent held-out sets, first scored 2026-10-07 by the classifier
+  baseline: reshabhs/SPML_Chatbot_Prompt_Injection (all 16k rows, `User Prompt` /
+  `Prompt injection`) and Lakera/gandalf_ignore_instructions (all 1,000 rows, attacks only;
+  5 rows were printed once in v0.1 while choosing datasets). Same rules as the others:
+  never tune on their rows or miss lists.
+- Classifier discipline: train on train splits only, drop any training text that also
+  appears in an evaluation set (`train_classifier.py` does this), choose models and
+  thresholds on training data, and write a protocol before the first held-out run of any
+  new model. Report same-source test splits (deepset, safe-guard, jailbreak) as optimistic
+  for the classifier; SPML and Gandalf are the generalisation numbers. Every jailbreak in
+  jailbreak-classification train also appears in safe-guard.
+- FP stress test: tatsu-lab/alpaca (52k benign instructions). Rules: zero suspicious+ as of
   PI-014; any new rule that alerts there needs a look before merging.
 - `eval/obfuscation_eval.py` applies obfuscation transforms to held-out injections that
   are already detected in plain form. It guided decoder development, so report it as a
@@ -117,8 +135,10 @@ weights or thresholds, rerun the eval and update the README numbers.
 - v0.2 (done, version 0.2.0): obfuscation views in `deobfuscate.py`, original-text spans,
   PI-018. Held-out metrics unchanged (no obfuscation in those sets); robustness table in
   `eval/results/obfuscation.md`; 0 FP on 73k benign texts; ~+50% scan time on long email.
-- v0.3: ML classifier layer (TF-IDF + logistic regression baseline, then a small
-  transformer), combined with rule scores. Train only on train splits.
+- v0.3 (baseline done, not yet released): TF-IDF + logistic regression `PB-ML`, opt-in.
+  Suspicious+ recall, rules -> rules + classifier: SPML 0.182 -> 0.403 (1 FP in 3,470),
+  Gandalf 0.517 -> 0.741; Alpaca 0 -> 162 FP (0.31%; 13 at malicious), mostly creative
+  writing and security vocabulary. Next: a small transformer under its own protocol.
 - v0.4: optional LLM-as-judge for inputs the fast layers mark suspicious.
 - v0.5 (done): indirect injection. `scan_context()`, rule `scope` field, PI-015 to PI-017 (context
   only), measured on LLMail-Inject: recall 0.149 -> 0.163, 0 FP on 21k benign emails/docs.
@@ -127,6 +147,6 @@ weights or thresholds, rerun the eval and update the README numbers.
 ## Style
 
 - Python 3.10+, type hints, standard library plus PyYAML at runtime. New runtime
-  dependencies go behind an optional extra.
+  dependencies go behind an optional extra (scikit-learn is in `.[train]`, training only).
 - Keep the README honest: state limitations and known misses next to the metrics.
 - Commit messages: imperative, short summary line.
