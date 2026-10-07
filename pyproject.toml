@@ -21,6 +21,8 @@ classifiers = [
 [project.optional-dependencies]
 dev = ["pytest>=7"]
 eval = ["datasets>=2.14"]
+# Training the classifier only; inference is pure Python.
+train = ["datasets>=2.14", "scikit-learn>=1.3"]
 
 [project.scripts]
 promptbadger = "promptbadger.cli:main"
@@ -29,7 +31,7 @@ promptbadger = "promptbadger.cli:main"
 where = ["src"]
 
 [tool.setuptools.package-data]
-promptbadger = ["rules/*.yml"]
+promptbadger = ["rules/*.yml", "data/*.json.gz"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

@@ -9,6 +9,7 @@ from pathlib import Path
 
 from . import __version__
 from .canary import find_canaries
+from .classifier import Classifier
 from .deobfuscate import OBFUSCATION_ATLAS, View, build_views, build_vocabulary
 from .exfil import OUTPUT_CHECKS, find_exfil, find_smuggling
 from .models import (
@@ -48,6 +49,10 @@ class Scanner:
     decoded views (leetspeak, letter spacing, base64/hex, homoglyphs, rot13, ...; see
     deobfuscate.py). A detection reports the raw text and span that matched, the view it
     matched in, and adds ATLAS AML.T0068 when the match needed a view.
+
+    With `classifier=True` (or a loaded `Classifier`), `scan()` also runs the v0.3
+    TF-IDF + logistic regression model and adds its `PB-ML` detection to the same score
+    (see classifier.py). It is off by default while it is being measured.
     """
 
     def __init__(
@@ -58,6 +63,7 @@ class Scanner:
         suspicious_threshold: int = DEFAULT_SUSPICIOUS_THRESHOLD,
         trusted_domains: Iterable[str] = (),
         deobfuscate: bool = True,
+        classifier: bool | Classifier = False,
     ):
         self.rules = rules if rules is not None else load_rules(rules_dir)
         self.input_rules = [r for r in self.rules if "input" in r.scope]
@@ -69,6 +75,7 @@ class Scanner:
         self.trusted_domains = tuple(trusted_domains)
         self.deobfuscate = deobfuscate
         self.vocabulary = build_vocabulary(self.rules)
+        self.classifier = Classifier.load() if classifier is True else classifier or None
 
     @staticmethod
     def _first_match(rule: Rule, text: str) -> re.Match | None:
@@ -136,7 +143,13 @@ class Scanner:
         detections = self._match_rules(self.input_rules, views, text)
         detections += find_smuggling(text, (OBFUSCATION_ATLAS, "AML.T0051.000"))
         detections += find_canaries(views, text, canaries)
-        return self._result(text, detections, "input", len(self.input_rules) + 1)
+        checks = len(self.input_rules) + 1
+        if self.classifier is not None:
+            checks += 1
+            ml = self.classifier.detect(text)
+            if ml is not None:
+                detections.append(ml)
+        return self._result(text, detections, "input", checks)
 
     def scan_context(self, text: str) -> ScanResult:
         """Scan content the model will read (document, email, web page, tool output)."""

@@ -12,6 +12,9 @@ Usage:
     python eval/run_eval.py --hf deepset/prompt-injections --report eval/results/deepset-test.md
     python eval/run_eval.py --hf jackhhao/jailbreak-classification --text-col prompt --label-col type --positive jailbreak
     python eval/run_eval.py --dataset llmail.jsonl --direction context   # indirect injection (content scans)
+    python eval/run_eval.py --hf deepset/prompt-injections --ml        # rules plus the v0.3 classifier
+    python eval/run_eval.py --hf deepset/prompt-injections --ml-only   # the classifier alone
+    python eval/run_eval.py --hf tatsu-lab/alpaca --split train --text-col instruction --constant-label 0
 """
 
 from __future__ import annotations
@@ -61,16 +64,24 @@ def to_label(value, positive: str | None) -> int:
 
 
 def load_hf(
-    name: str, split: str, text_col: str = "text", label_col: str = "label", positive: str | None = None
+    name: str,
+    split: str,
+    text_col: str = "text",
+    label_col: str = "label",
+    positive: str | None = None,
+    constant_label: int | None = None,
 ) -> list[tuple[str, int]]:
     try:
         from datasets import load_dataset
     except ImportError:
         raise SystemExit("Hugging Face datasets not installed: pip install -e '.[eval]'")
     ds = load_dataset(name, split=split)
-    missing = {text_col, label_col} - set(ds.column_names)
+    needed = {text_col} if constant_label is not None else {text_col, label_col}
+    missing = needed - set(ds.column_names)
     if missing:
         raise SystemExit(f"{name} has no column(s) {sorted(missing)}; columns are {ds.column_names}")
+    if constant_label is not None:
+        return [(text, constant_label) for text in ds[text_col]]
     return [(row[text_col], to_label(row[label_col], positive)) for row in ds]
 
 
@@ -145,27 +156,38 @@ def main(argv=None) -> int:
     p.add_argument("--text-col", default="text", help="text column for --hf (default: text)")
     p.add_argument("--label-col", default="label", help="label column for --hf (default: label)")
     p.add_argument("--positive", help="label value meaning injection, for string labels (e.g. jailbreak)")
+    p.add_argument("--constant-label", type=int, choices=[0, 1],
+                   help="label every --hf row this way, for single-class sets (1: all attacks, 0: all benign)")
     p.add_argument("--direction", choices=["input", "context"], default="input",
                    help="input: prompts via scan(); context: documents/emails via scan_context()")
     p.add_argument("--no-deobfuscate", action="store_true",
                    help="scan the normalized text only, without decoded views (for before/after comparisons)")
     p.add_argument("--rules", help="rules directory (default: bundled)")
+    layer = p.add_mutually_exclusive_group()
+    layer.add_argument("--ml", action="store_true", help="add the v0.3 classifier (PB-ML) to the rules")
+    layer.add_argument("--ml-only", action="store_true", help="classifier only, no rules (to measure it alone)")
     p.add_argument("--misses", type=int, default=25, help="list up to N false negatives/positives (0 to hide)")
     p.add_argument("--report", type=Path, help="also write the markdown report to this file")
     p.add_argument("--min-f1", type=float, help="exit 1 if F1 at the suspicious+ point is below this (for CI)")
     args = p.parse_args(argv)
 
     if args.hf:
-        rows = load_hf(args.hf, args.split, args.text_col, args.label_col, args.positive)
+        rows = load_hf(args.hf, args.split, args.text_col, args.label_col, args.positive, args.constant_label)
         name = f"{args.hf} ({args.split})"
     else:
         path = args.dataset or DEFAULT_DATASET
         rows, name = load_local(path), path.name
 
-    scanner = Scanner(rules_dir=args.rules, deobfuscate=not args.no_deobfuscate)
+    rules = [] if args.ml_only else None
+    scanner = Scanner(rules=rules, rules_dir=args.rules, deobfuscate=not args.no_deobfuscate,
+                      classifier=args.ml or args.ml_only)
     results, points, hits, fp_hits, ms = run(rows, scanner, args.direction)
     if args.direction == "context":
         name += " [context scan]"
+    if args.ml_only:
+        name += " [classifier only]"
+    elif args.ml:
+        name += " [rules + classifier]"
     report = render(name, rows, results, points, hits, fp_hits, ms, args.misses)
     print(report)
     if args.report:
