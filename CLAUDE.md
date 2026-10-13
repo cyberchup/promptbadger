@@ -25,6 +25,12 @@ python demo/app.py               # Gradio demo (needs gradio installed)
 
 Development is on Windows (PowerShell, venv at `.venv`). CI runs on Ubuntu, Python 3.10-3.12.
 
+Releasing: bump the version in `pyproject.toml` and `src/promptbadger/__init__.py`, rerun
+the evals, tag `vX.Y.Z`, then publish a GitHub release for the tag. `publish.yml` checks
+the tag matches the version, builds, tests the built wheel and uploads to PyPI (trusted
+publishing, environment `pypi`). A manual run of `publish.yml` goes to TestPyPI only.
+README links must be absolute URLs: PyPI renders the README and can't resolve relative paths.
+
 ## Layout
 
 - `src/promptbadger/scanner.py` - `Scanner.scan()`, noisy-OR scoring, verdict thresholds
@@ -142,7 +148,8 @@ weights or thresholds, rerun the eval and update the README numbers.
 - v0.4: optional LLM-as-judge for inputs the fast layers mark suspicious.
 - v0.5 (done): indirect injection. `scan_context()`, rule `scope` field, PI-015 to PI-017 (context
   only), measured on LLMail-Inject: recall 0.149 -> 0.163, 0 FP on 21k benign emails/docs.
-- Later: FastAPI service for use as a gateway sidecar; publish to PyPI (name is free).
+- PyPI: `publish.yml` ready (2026-10-13); first upload waits on the trusted-publisher setup on pypi.org.
+- Later: FastAPI service for use as a gateway sidecar.
 
 ## Style
 

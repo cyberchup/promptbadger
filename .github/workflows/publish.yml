@@ -1,0 +1,87 @@
+name: Publish
+
+# Publishing a GitHub release uploads that tag to PyPI. Uploads use trusted publishing
+# (OIDC), so no API token is stored in the repo. A manual run sends the chosen branch to
+# TestPyPI instead, as a dry run of the pipeline; it never touches PyPI.
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Check the release tag matches the package version
+        if: github.event_name == 'release'
+        env:
+          TAG: ${{ github.event.release.tag_name }}
+        run: |
+          version=$(python -c "import tomllib; print(tomllib.load(open('pyproject.toml', 'rb'))['project']['version'])")
+          if [ "$TAG" != "v$version" ]; then
+            echo "::error::Release tag $TAG does not match pyproject.toml version $version"
+            exit 1
+          fi
+      - name: Build sdist and wheel
+        run: |
+          pip install build twine
+          python -m build
+      - name: Check metadata and README rendering
+        run: twine check --strict dist/*
+      - name: Test the built wheel
+        # CI tests an editable install, which reads rules and the model from the source
+        # tree; this catches package data that never made it into the wheel.
+        # test_eval.py is skipped: it imports the eval harness, which puts src/ on the path.
+        run: |
+          python -m venv /tmp/wheel
+          /tmp/wheel/bin/pip install dist/*.whl pytest
+          /tmp/wheel/bin/python -c "import promptbadger; assert 'site-packages' in promptbadger.__file__"
+          /tmp/wheel/bin/python -m pytest -q -p no:cacheprovider --ignore=tests/test_eval.py
+          /tmp/wheel/bin/promptbadger test-rules
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          path: dist/
+
+  pypi:
+    needs: build
+    if: github.event_name == 'release'
+    runs-on: ubuntu-latest
+    environment:
+      name: pypi
+      url: https://pypi.org/project/promptbadger/
+    permissions:
+      id-token: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: dist/
+      - uses: pypa/gh-action-pypi-publish@release/v1
+
+  testpypi:
+    needs: build
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    environment:
+      name: testpypi
+      url: https://test.pypi.org/project/promptbadger/
+    permissions:
+      id-token: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: dist/
+      - uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          repository-url: https://test.pypi.org/legacy/
+          # A version can only be uploaded once; rerunning a dry run should not fail on that.
+          skip-existing: true
