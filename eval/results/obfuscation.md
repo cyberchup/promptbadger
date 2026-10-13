@@ -1,4 +1,4 @@
-# promptbadger 0.2.0: detection under obfuscation
+# promptbadger 0.3.0: detection under obfuscation
 
 289 injections from the deepset, safe-guard and jailbreak-classification test splits
 that are detected (suspicious or worse) in plain form, each rewritten with one technique.

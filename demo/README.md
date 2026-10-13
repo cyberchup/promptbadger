@@ -18,5 +18,6 @@ Top 10 mappings, and the combined 0-100 risk score.
 
 The rules are regex heuristics, run on the text and on decoded copies of it (leetspeak,
 base64, letter spacing, look-alike letters, rot13), so reworded attacks are expected
-misses. Source, rule pack and evaluation results:
+misses. Tick the box to add the v0.3 ML classifier, which catches some of them at the
+cost of more false positives. Source, rule pack and evaluation results:
 https://github.com/cyberchup/promptbadger

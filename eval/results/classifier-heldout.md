@@ -1,4 +1,4 @@
-# promptbadger 0.2.0 classifier: held-out evaluation
+# promptbadger 0.3.0 classifier: held-out evaluation
 
 Run once, as registered in [classifier-protocol.md](classifier-protocol.md), with the model
 trained 2026-10-07 on 9,133 rows ([training report](classifier-training.md)). Thresholds: suspicious p >= 0.572, malicious p >= 0.834. Nothing was changed after this run.

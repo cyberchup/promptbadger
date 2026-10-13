@@ -1,4 +1,4 @@
-# promptbadger 0.2.0 evaluation: sample.jsonl
+# promptbadger 0.3.0 evaluation: sample.jsonl
 
 106 samples (53 injection, 53 benign). Scan time 25 ms total, 0.23 ms/sample.
 

@@ -135,7 +135,7 @@ weights or thresholds, rerun the eval and update the README numbers.
 - v0.2 (done, version 0.2.0): obfuscation views in `deobfuscate.py`, original-text spans,
   PI-018. Held-out metrics unchanged (no obfuscation in those sets); robustness table in
   `eval/results/obfuscation.md`; 0 FP on 73k benign texts; ~+50% scan time on long email.
-- v0.3 (baseline done, not yet released): TF-IDF + logistic regression `PB-ML`, opt-in.
+- v0.3 (done, version 0.3.0): TF-IDF + logistic regression `PB-ML`, opt-in (a checkbox in the demo).
   Suspicious+ recall, rules -> rules + classifier: SPML 0.182 -> 0.403 (1 FP in 3,470),
   Gandalf 0.517 -> 0.741; Alpaca 0 -> 162 FP (0.31%; 13 at malicious), mostly creative
   writing and security vocabulary. Next: a small transformer under its own protocol.

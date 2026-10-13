@@ -1,6 +1,6 @@
-# promptbadger 0.2.0 evaluation: jackhhao/jailbreak-classification (test)
+# promptbadger 0.3.0 evaluation: jackhhao/jailbreak-classification (test)
 
-262 samples (139 injection, 123 benign). Scan time 1192 ms total, 4.55 ms/sample.
+262 samples (139 injection, 123 benign). Scan time 1172 ms total, 4.48 ms/sample.
 
 | Alert on | Precision | Recall | F1 | FPR | TP | FP | TN | FN |
 |---|---|---|---|---|---|---|---|---|
