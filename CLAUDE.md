@@ -148,7 +148,7 @@ weights or thresholds, rerun the eval and update the README numbers.
 - v0.4: optional LLM-as-judge for inputs the fast layers mark suspicious.
 - v0.5 (done): indirect injection. `scan_context()`, rule `scope` field, PI-015 to PI-017 (context
   only), measured on LLMail-Inject: recall 0.149 -> 0.163, 0 FP on 21k benign emails/docs.
-- PyPI: `publish.yml` ready (2026-10-13); first upload waits on the trusted-publisher setup on pypi.org.
+- PyPI (done): on PyPI from 0.3.1 (2026-10-13), uploaded by `publish.yml` with trusted publishing.
 - Later: FastAPI service for use as a gateway sidecar.
 
 ## Style
