@@ -28,7 +28,7 @@ as columns (`verdict`, `score`, `detections`, `Source`, `input_sha256`, ...). Th
   ],
   "input_length": 62,
   "input_sha256": "…",
-  "scanner_version": "0.3.0",
+  "scanner_version": "0.3.1",
   "ruleset_size": 14
 }
 ```
