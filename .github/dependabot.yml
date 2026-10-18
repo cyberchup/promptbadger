@@ -1,0 +1,15 @@
+version: 2
+updates:
+  # Workflows pin actions to full commit SHAs. Dependabot keeps the SHAs and their
+  # version comments current, one grouped PR a month.
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly
+    # Skip releases younger than a week: a hijacked action release is usually caught
+    # and pulled within days, before a pin would pick it up.
+    cooldown:
+      default-days: 7
+    groups:
+      actions:
+        patterns: ["*"]

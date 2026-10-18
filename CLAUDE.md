@@ -30,6 +30,9 @@ the evals, tag `vX.Y.Z`, then publish a GitHub release for the tag. `publish.yml
 the tag matches the version, builds, tests the built wheel and uploads to PyPI (trusted
 publishing, environment `pypi`). A manual run of `publish.yml` goes to TestPyPI only.
 README links must be absolute URLs: PyPI renders the README and can't resolve relative paths.
+Workflows pin every action to a full commit SHA with a `# vX.Y.Z` comment, check out with
+`persist-credentials: false` and declare `permissions:`; Dependabot updates the pins monthly
+(7-day cooldown). Keep new workflow steps to the same pattern; `zizmor .github/` audits them.
 
 ## Layout
 
