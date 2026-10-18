@@ -58,7 +58,7 @@ Workflows pin every action to a full commit SHA with a `# vX.Y.Z` comment, check
 - `eval/` - `run_eval.py`, `data/sample.jsonl` (dev set), `results/` (reports),
   `train_classifier.py` and `classifier_eval.py` (v0.3; protocol in `results/classifier-protocol.md`)
 - `integrations/sentinel/` - analytics rule and hunting KQL for the JSONL events
-- `demo/` - Gradio app for the Hugging Face Space (installs promptbadger from GitHub)
+- `demo/` - Gradio app for the Hugging Face Space (installs a pinned promptbadger release from PyPI)
 
 ## Scoring
 
