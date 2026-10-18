@@ -9,3 +9,4 @@ dist/
 .idea/
 .vscode/
 flagged/
+eval/.judge-cache/

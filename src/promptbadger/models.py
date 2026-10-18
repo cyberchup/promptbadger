@@ -71,13 +71,21 @@ class ScanResult:
     scanner_version: str
     ruleset_size: int  # rules (input) or leak checks (output) evaluated
     direction: str = "input"  # from scan() / scan_context() / scan_output()
+    # Set only when the v0.4 LLM judge reviewed a suspicious result: `verdict` is then the
+    # final verdict, `score` and `fast_verdict` are what the rules and classifier said.
+    fast_verdict: str | None = None
+    judge: dict | None = None  # status, verdict, rationale, model, prompt_version, latency_ms
 
     @property
     def is_injection(self) -> bool:
         return self.verdict == VERDICT_MALICIOUS
 
     def to_dict(self) -> dict:
-        return asdict(self)
+        data = asdict(self)
+        for key in ("fast_verdict", "judge"):  # events without a judge keep their old shape
+            if data[key] is None:
+                del data[key]
+        return data
 
     def to_event(
         self,

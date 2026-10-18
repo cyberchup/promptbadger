@@ -35,10 +35,12 @@ Issues = "https://github.com/cyberchup/promptbadger/issues"
 Changelog = "https://github.com/cyberchup/promptbadger/releases"
 
 [project.optional-dependencies]
-dev = ["pytest>=7"]
+dev = ["pytest>=7", "anthropic>=1.15"]
 eval = ["datasets>=2.14"]
 # Training the classifier only; inference is pure Python.
 train = ["datasets>=2.14", "scikit-learn>=1.3"]
+# The optional v0.4 LLM judge (sends suspicious inputs to the Anthropic API).
+judge = ["anthropic>=1.15"]
 
 [project.scripts]
 promptbadger = "promptbadger.cli:main"

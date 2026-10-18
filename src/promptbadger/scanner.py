@@ -12,6 +12,7 @@ from .canary import find_canaries
 from .classifier import Classifier
 from .deobfuscate import OBFUSCATION_ATLAS, View, build_views, build_vocabulary
 from .exfil import OUTPUT_CHECKS, find_exfil, find_smuggling
+from .judge import Judge, final_verdict
 from .models import (
     SEVERITY_WEIGHTS,
     VERDICT_BENIGN,
@@ -53,6 +54,11 @@ class Scanner:
     With `classifier=True` (or a loaded `Classifier`), `scan()` also runs the v0.3
     TF-IDF + logistic regression model and adds its `PB-ML` detection to the same score
     (see classifier.py). It is off by default while it is being measured.
+
+    With `judge=True` (or a configured `Judge`), `scan()` sends inputs the fast layers
+    score suspicious to the v0.4 LLM judge, which confirms (malicious), closes (benign)
+    or leaves them suspicious (see judge.py). It sends the input text to the Anthropic
+    API, so it is off by default and needs the `judge` extra.
     """
 
     def __init__(
@@ -64,6 +70,7 @@ class Scanner:
         trusted_domains: Iterable[str] = (),
         deobfuscate: bool = True,
         classifier: bool | Classifier = False,
+        judge: bool | Judge = False,
     ):
         self.rules = rules if rules is not None else load_rules(rules_dir)
         self.input_rules = [r for r in self.rules if "input" in r.scope]
@@ -76,6 +83,7 @@ class Scanner:
         self.deobfuscate = deobfuscate
         self.vocabulary = build_vocabulary(self.rules)
         self.classifier = Classifier.load() if classifier is True else classifier or None
+        self.judge = Judge() if judge is True else judge or None
 
     @staticmethod
     def _first_match(rule: Rule, text: str) -> re.Match | None:
@@ -149,7 +157,13 @@ class Scanner:
             ml = self.classifier.detect(text)
             if ml is not None:
                 detections.append(ml)
-        return self._result(text, detections, "input", checks)
+        result = self._result(text, detections, "input", checks)
+        if self.judge is not None and result.verdict == VERDICT_SUSPICIOUS:
+            judgement = self.judge.judge(text, result.detections)
+            result.fast_verdict = result.verdict
+            result.verdict = final_verdict(result.verdict, judgement)
+            result.judge = judgement.to_event()
+        return result
 
     def scan_context(self, text: str) -> ScanResult:
         """Scan content the model will read (document, email, web page, tool output)."""

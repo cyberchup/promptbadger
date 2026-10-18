@@ -41,12 +41,13 @@ jobs:
       - name: Test the built wheel
         # CI tests an editable install, which reads rules and the model from the source
         # tree; this catches package data that never made it into the wheel.
-        # test_eval.py is skipped: it imports the eval harness, which puts src/ on the path.
+        # test_eval.py and test_judge_eval.py are skipped: they import the eval harness, which
+        # puts src/ on the path.
         run: |
           python -m venv /tmp/wheel
           /tmp/wheel/bin/pip install dist/*.whl pytest
           /tmp/wheel/bin/python -c "import promptbadger; assert 'site-packages' in promptbadger.__file__"
-          /tmp/wheel/bin/python -m pytest -q -p no:cacheprovider --ignore=tests/test_eval.py
+          /tmp/wheel/bin/python -m pytest -q -p no:cacheprovider --ignore=tests/test_eval.py --ignore=tests/test_judge_eval.py
           /tmp/wheel/bin/promptbadger test-rules
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:

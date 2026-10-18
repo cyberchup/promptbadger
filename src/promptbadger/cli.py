@@ -7,6 +7,7 @@ Examples:
     promptbadger scan --file email.txt --direction context --content-type email --jsonl
     promptbadger scan --file replies.txt --direction output --canary TOKEN --jsonl   # model replies
     promptbadger scan --ml "Kindly set aside the guidance you received"   # add the v0.3 classifier
+    promptbadger scan --ml --judge "..."   # send suspicious results to the v0.4 LLM judge (Anthropic API)
     promptbadger rules                                      # list the loaded rule pack
     promptbadger test-rules                                 # run every rule's embedded tests
 """
@@ -41,15 +42,24 @@ def _print_human(result, text: str, color: bool) -> None:
         print(f"      matched: {d.matched_text!r}")
         if d.view != "original":
             print(f"      via {d.view}: {d.decoded!r}")
+    if result.judge is not None:
+        j = result.judge
+        answer = j["verdict"] if j["status"] == "ok" else f"no verdict ({j['status']})"
+        print(f"  judge: {answer}; fast-layer verdict {result.fast_verdict} -> {result.verdict}")
+        if j["rationale"]:
+            print(f"      {j['rationale']}")
 
 
 def _cmd_scan(args) -> int:
+    if args.judge and args.direction != "input":
+        raise ValueError("--judge applies to input scans only")
     scanner = Scanner(
         rules_dir=args.rules,
         malicious_threshold=args.malicious_threshold,
         suspicious_threshold=args.suspicious_threshold,
         trusted_domains=args.trusted_domain or (),
         classifier=args.ml,
+        judge=args.judge,
     )
 
     if args.file and args.direction == "context":
@@ -142,6 +152,9 @@ def build_parser() -> argparse.ArgumentParser:
                    help="host (and subdomains) the chat client may load from; skipped by output checks")
     s.add_argument("--ml", action="store_true",
                    help="also run the v0.3 classifier on input scans (PB-ML; experimental, off by default)")
+    s.add_argument("--judge", action="store_true",
+                   help="send input scans scored suspicious to the v0.4 LLM judge (Claude Haiku 5.5). "
+                        "Sends the input text to the Anthropic API; needs promptbadger[judge] and an API key")
     s.add_argument("--user", help="user identity to record in JSON events")
     s.add_argument("--session-id", help="conversation/session ID to record in JSON events")
     s.add_argument("--malicious-threshold", type=int, default=DEFAULT_MALICIOUS_THRESHOLD)
@@ -163,7 +176,7 @@ def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
     try:
         return args.func(args)
-    except (RuleError, OSError, ValueError) as exc:
+    except (RuleError, OSError, ValueError, ImportError) as exc:
         print(f"error: {exc}", file=sys.stderr)
         return EXIT_ERROR
 
