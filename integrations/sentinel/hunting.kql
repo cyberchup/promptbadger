@@ -8,9 +8,11 @@ PromptInjection_CL
 | order by Hits desc
 
 // 2. Probing behaviour: a source trying many distinct prompts that land just under the threshold.
+//    Uses the fast-layer verdict, so prompts the LLM judge closed or promoted still count.
 PromptInjection_CL
 | where TimeGenerated > ago(24h)
-| where verdict == "suspicious"
+| extend FastVerdict = coalesce(tostring(column_ifexists("fast_verdict", "")), verdict)
+| where FastVerdict == "suspicious"
 | summarize DistinctPrompts = dcount(input_sha256), AvgScore = avg(score), MaxScore = max(score)
     by Source, bin(TimeGenerated, 1h)
 | where DistinctPrompts >= 5
@@ -27,18 +29,21 @@ PromptInjection_CL
 // 4. Slow-burn conversations: weak signals spread across one session, none alerting alone.
 //    Combines per-turn scores with the scanner's own noisy-OR (1 - prod(1 - score/100)),
 //    so three suspicious turns can add up to a malicious conversation. Needs SessionId,
-//    i.e. the app passes session_id= to to_event().
+//    i.e. the app passes session_id= to to_event(). Turns are counted by the fast-layer
+//    verdict: the LLM judge sees one turn at a time, so a turn it closed can still be
+//    part of a slow-burn attack.
 let turns = PromptInjection_CL
     | where TimeGenerated > ago(24h)
     | where EventType == "PromptInjectionScan"
     | extend SessionId = tostring(column_ifexists("SessionId", "")),
-             User = tostring(column_ifexists("User", ""))
+             User = tostring(column_ifexists("User", "")),
+             FastVerdict = coalesce(tostring(column_ifexists("fast_verdict", "")), verdict)
     | where isnotempty(SessionId);
 turns
 | extend KeepProb = 1.0 - todouble(min_of(score, 99)) / 100.0
 | summarize
     Turns = count(),
-    FlaggedTurns = countif(verdict != "benign"),
+    FlaggedTurns = countif(FastVerdict != "benign"),
     MaxTurnScore = max(score),
     LogKeep = sum(log(KeepProb)),
     FirstSeen = min(TimeGenerated),
@@ -102,3 +107,35 @@ PromptInjection_CL
     LastSeen = max(TimeGenerated)
     by Source, User, Direction
 | order by Attempts desc
+
+// 7. Alerts the LLM judge closed: the fast layers said suspicious, the v0.4 judge said
+//    benign. Review them like auto-closed incidents: spot-check a sample each week, and
+//    look at every closure for a user who also has malicious events. A failed judge call
+//    never closes an alert, so each row is a judge decision. `score` is still the
+//    fast-layer score. Needs the judge turned on (`--judge` / `Scanner(judge=True)`).
+let lookback = 7d;
+let flagged_users = PromptInjection_CL
+    | where TimeGenerated > ago(lookback)
+    | where verdict == "malicious"
+    | extend User = tostring(column_ifexists("User", ""))
+    | where isnotempty(User)
+    | summarize UserMaliciousEvents = count() by User;
+PromptInjection_CL
+| where TimeGenerated > ago(lookback)
+| where EventType == "PromptInjectionScan"
+| extend FastVerdict = tostring(column_ifexists("fast_verdict", ""))
+| where FastVerdict == "suspicious" and verdict == "benign"
+| extend Judge = todynamic(column_ifexists("judge", dynamic(null))),
+         User = tostring(column_ifexists("User", "")),
+         SessionId = tostring(column_ifexists("SessionId", ""))
+| extend JudgeRationale = tostring(Judge.rationale),
+         JudgeModel = tostring(Judge.model),
+         PromptVersion = tostring(Judge.prompt_version)
+| mv-apply detection = detections on (
+    summarize Rules = make_set(tostring(detection.rule_id))
+  )
+| join kind=leftouter flagged_users on User
+| extend UserMaliciousEvents = coalesce(UserMaliciousEvents, 0)
+| project TimeGenerated, Source, User, SessionId, score, Rules, JudgeRationale,
+          JudgeModel, PromptVersion, UserMaliciousEvents, input_sha256
+| order by UserMaliciousEvents desc, score desc

@@ -53,6 +53,13 @@ rule filters on `EventType == "PromptInjectionScan"`, so ship `to_event()` rathe
   `decoded`, `spacing`, `homoglyph`, `rot13`, ...), with the decoded text in `decoded` and
   ATLAS AML.T0068 added. `matched_text` and `span` always point at the raw input, so an
   analyst sees what was actually sent. Hunting query 6 lists obfuscation in use.
+- With the optional v0.4 LLM judge (`--judge`), input events the fast layers scored
+  suspicious also carry `fast_verdict` and a `judge` object (`status`, `verdict`,
+  `rationale`, `model`, `prompt_version`, `latency_ms`). `verdict` is then the final
+  verdict, while `score` and `detections` stay what the rules and classifier found. A
+  judge-promoted event is `malicious` and alerts; a judge-closed one is `benign`, and
+  hunting query 7 lists those for review. Queries 2 and 4 count by `fast_verdict`, so
+  closed turns still add up in probing and slow-burn sessions.
 - The queries read these columns with `column_ifexists()`, so they still run on a table
   created before the columns existed.
 
@@ -79,5 +86,5 @@ Raw prompt text is left out by default (it can contain personal data); add
   zero-click image exfiltration, data-carrying links, ASCII smuggling)
 - [`hunting.kql`](hunting.kql): hunting queries for rule noise, probing, technique trends and
   slow-burn conversations (weak signals combined per `SessionId`), the injection-to-leak
-  chain (poisoned content followed by a leaking reply in the same session), and obfuscation
-  in use (detections that only matched after decoding)
+  chain (poisoned content followed by a leaking reply in the same session), obfuscation
+  in use (detections that only matched after decoding), and alerts the LLM judge closed
