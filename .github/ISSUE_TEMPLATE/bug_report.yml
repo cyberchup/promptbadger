@@ -1,0 +1,42 @@
+name: Bug report
+description: Something in the CLI, library, evaluation scripts or Sentinel content doesn't work
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        For a wrong verdict, use the False positive or Missed detection template instead.
+        A crash or a slow scan on crafted input may be a security issue: see the security policy.
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened, and what you expected
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: The command or a minimal Python snippet.
+      render: text
+    validations:
+      required: true
+  - type: textarea
+    id: traceback
+    attributes:
+      label: Error output or traceback
+      render: text
+  - type: input
+    id: version
+    attributes:
+      label: promptbadger version
+      description: "`promptbadger --version`"
+    validations:
+      required: true
+  - type: input
+    id: environment
+    attributes:
+      label: Python version and OS
+      placeholder: Python 3.12, Ubuntu 24.04
+    validations:
+      required: true

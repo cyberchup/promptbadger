@@ -1,0 +1,74 @@
+name: Missed detection
+description: A prompt injection, jailbreak or leak that promptbadger did not flag
+title: "Missed detection: "
+labels: ["missed detection"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting a gap. Detection gaps are public issues, not vulnerabilities
+        (see the security policy); flaws in promptbadger itself, such as ReDoS, go there instead.
+        Don't paste real secrets, personal data or confidential system prompts.
+  - type: textarea
+    id: text
+    attributes:
+      label: Text that was missed
+      render: text
+    validations:
+      required: true
+  - type: textarea
+    id: goal
+    attributes:
+      label: What the attack does
+      description: |
+        What it tries to make the model do (override its instructions, reveal the system prompt,
+        drop its safety rules, leak data in a link...) and how it is disguised, if at all.
+        A MITRE ATLAS technique ID helps if you know it.
+    validations:
+      required: true
+  - type: dropdown
+    id: direction
+    attributes:
+      label: Where it would be scanned
+      options:
+        - A user prompt (scan)
+        - Retrieved content, such as a document, email or web page (scan_context)
+        - A model reply (scan_output)
+    validations:
+      required: true
+  - type: checkboxes
+    id: layers
+    attributes:
+      label: Optional layers that were on
+      options:
+        - label: Classifier (`--ml` / `classifier=True`)
+        - label: LLM judge (`--judge` / `judge=True`)
+  - type: textarea
+    id: event
+    attributes:
+      label: promptbadger output
+      description: "The event from `promptbadger scan --json`. A low score or a judge rationale shows how close it came."
+      render: json
+  - type: dropdown
+    id: source
+    attributes:
+      label: Where the text comes from
+      description: |
+        Rows from the held-out evaluation sets (deepset, safe-guard and jailbreak-classification
+        test splits, SPML, Gandalf, LLMail-Inject) are recorded as known gaps but never used to
+        write rules, so the published numbers stay honest. See CONTRIBUTING.md.
+      options:
+        - I wrote it
+        - Seen in a real application
+        - A paper, blog post or public red-teaming write-up
+        - One of the held-out evaluation datasets
+        - Other
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: promptbadger version
+      description: "`promptbadger --version`"
+    validations:
+      required: true

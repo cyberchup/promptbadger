@@ -1,0 +1,61 @@
+name: False positive
+description: Benign text that promptbadger flagged as suspicious or malicious
+title: "False positive: "
+labels: ["false positive"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting noise: every false positive is a tuning request.
+        Don't paste personal data, secrets or confidential prompts. If the real text holds
+        any, paraphrase it and check that the paraphrase still triggers the same rules.
+  - type: textarea
+    id: text
+    attributes:
+      label: Text that was flagged
+      render: text
+    validations:
+      required: true
+  - type: textarea
+    id: event
+    attributes:
+      label: promptbadger output
+      description: "The event from `promptbadger scan --json` (verdict, score and the rules that fired)."
+      render: json
+    validations:
+      required: true
+  - type: dropdown
+    id: direction
+    attributes:
+      label: What was scanned
+      options:
+        - A user prompt (scan)
+        - Retrieved content, such as a document, email or web page (scan_context)
+        - A model reply (scan_output)
+    validations:
+      required: true
+  - type: checkboxes
+    id: layers
+    attributes:
+      label: Optional layers that were on
+      options:
+        - label: Classifier (`--ml` / `classifier=True`)
+        - label: LLM judge (`--judge` / `judge=True`)
+        - label: Decoded views turned off (`deobfuscate=False`)
+  - type: textarea
+    id: context
+    attributes:
+      label: Why it is benign, and how often it fires
+      description: |
+        What the application does and why this text is normal there. If you know the volume
+        (for example 40 alerts a day out of 20,000 prompts), include it: it decides whether
+        the fix is a rule change, a lower confidence or a documented false positive.
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: promptbadger version
+      description: "`promptbadger --version`"
+    validations:
+      required: true

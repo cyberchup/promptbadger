@@ -1,0 +1,5 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Security vulnerability in promptbadger itself
+    url: https://github.com/cyberchup/promptbadger/security/policy
+    about: ReDoS, crashes on crafted input, data leaks. Report privately; see the security policy.
