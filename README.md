@@ -20,8 +20,6 @@ structured log events that a SIEM can alert on.
 
 *Named for the Badger State, where badgers dig things up.*
 
-> **Live demo:** _add your Hugging Face Space link here_
-
 ![promptbadger demo](https://raw.githubusercontent.com/cyberchup/promptbadger/main/docs/demo.png)
 
 ```console
