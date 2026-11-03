@@ -207,3 +207,18 @@ logged.
 Context and output scans; other judge providers or local models (the interface stays
 pluggable, but only Haiku 5.5 is measured); the Message Batches API; judging inputs
 outside the suspicious band.
+
+## Pre-run note (2026-11-02)
+
+Added after `judge_eval.py estimate`, which scans the held-out sets with the fast layers
+only, and before any development or held-out judge call. Nothing above changes.
+
+The band sizes match the v0.3 numbers quoted above, and the held-out run comes to at
+most 4,375 calls with a $1.75 cost ceiling. Dolly, the uninformed benign set, puts only
+6 of its 15,011 instructions in the suspicious band (2 under rules alone). A2 pools
+Alpaca and Dolly, so 149 of its 155 texts come from Alpaca, which is partly informed
+(see Prompt rules), and Dolly's own close rate will have a wide interval. The protocol
+is kept as written: the held-out report and the README state next to A2 that it rests
+almost entirely on Alpaca, and give Dolly's close rate and interval separately. The 2
+Dolly instructions that rules alone put in the band are reported as false positives
+like any other.
