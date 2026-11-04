@@ -17,7 +17,7 @@ promptbadger test-rules                    # every rule's embedded match / no_ma
 python eval/run_eval.py --min-f1 0.78      # sample-set regression gate
 ```
 
-CI runs those three on Python 3.10, 3.11 and 3.12. Add `.[eval]` to load Hugging Face
+CI runs those three on Python 3.10 to 3.14. Add `.[eval]` to load Hugging Face
 datasets for the evaluations below.
 
 ## False positives and missed detections

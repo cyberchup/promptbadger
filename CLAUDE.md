@@ -23,7 +23,7 @@ python eval/classifier_eval.py   # held-out sets x {rules, classifier, both} -> 
 python demo/app.py               # Gradio demo (needs gradio installed)
 ```
 
-Development is on Windows (PowerShell, venv at `.venv`). CI runs on Ubuntu, Python 3.10-3.12.
+Development is on Windows (PowerShell, venv at `.venv`). CI runs on Ubuntu, Python 3.10-3.14.
 
 Releasing: bump the version in `pyproject.toml` and `src/promptbadger/__init__.py`, rerun
 the evals, tag `vX.Y.Z`, then publish a GitHub release for the tag. `publish.yml` checks
