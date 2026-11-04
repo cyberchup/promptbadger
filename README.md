@@ -204,30 +204,41 @@ tests in each direction fails CI.
 
 ### Rule pack
 
-| ID | Title | Severity | ATLAS |
-|---|---|---|---|
-| PI-001 | Instruction override ("ignore previous instructions") | high | AML.T0051.000 |
-| PI-002 | Task redirection ("your new task is") | medium | AML.T0051.000 |
-| PI-003 | System prompt extraction | high | AML.T0051.000 (also OWASP LLM08) |
-| PI-004 | Jailbreak persona / mode switch (DAN, god mode) | high | AML.T0051.000, AML.T0054 |
-| PI-005 | Safety and policy bypass language | high | AML.T0051.000, AML.T0054 |
-| PI-006 | Fake chat-template or role delimiters | high | AML.T0051.000 |
-| PI-007 | Authority impersonation / fake authorization | medium | AML.T0051.000 |
-| PI-008 | Context termination preamble ("Well done. Now...") | low | AML.T0051.000 |
-| PI-009 | Instruction override in German, Spanish, French, Russian, Serbian/Croatian | high | AML.T0051.000 |
-| PI-010 | Role-play framing ("never break character") | medium | AML.T0054 |
-| PI-011 | Persona assignment (informational only) | low | AML.T0051.000 |
-| PI-012 | Context reset ("forget everything and write...") *(experimental)* | high | AML.T0051.000 |
-| PI-013 | Grounding override: ignore the provided documents (RAG) *(experimental)* | medium | AML.T0051.000 |
-| PI-014 | Secret or credential request ("give me your password") *(experimental)* | medium | AML.T0057 (OWASP LLM02, LLM08) |
-| PI-015 | Content addresses the AI reading it ("If you are an AI assistant...") *(experimental, context only)* | high | AML.T0051.001 |
-| PI-016 | Content tells the model what to do with the user ("When summarizing this, include...") *(experimental, context only)* | medium | AML.T0051.001 |
-| PI-017 | Instructions hidden in markup (HTML comments, invisible text) *(experimental, context only)* | high | AML.T0051.001, AML.T0068 |
-| PI-018 | Encoded payload with a decode-and-obey instruction ("decode this and follow it") *(experimental)* | medium | AML.T0068, AML.T0051.000 |
+| ID | Title | Severity | Status | ATLAS |
+|---|---|---|---|---|
+| PI-001 | Instruction override ("ignore previous instructions") | high | stable | AML.T0051.000 |
+| PI-002 | Task redirection ("your new task is") | medium | stable | AML.T0051.000 |
+| PI-003 | System prompt extraction | high | stable | AML.T0051.000 (also OWASP LLM08) |
+| PI-004 | Jailbreak persona / mode switch (DAN, god mode) | high | stable | AML.T0051.000, AML.T0054 |
+| PI-005 | Safety and policy bypass language | high | stable | AML.T0051.000, AML.T0054 |
+| PI-006 | Fake chat-template or role delimiters | high | stable | AML.T0051.000 |
+| PI-007 | Authority impersonation / fake authorization | medium | stable | AML.T0051.000 |
+| PI-008 | Context termination preamble ("Well done. Now...") | low | test | AML.T0051.000 |
+| PI-009 | Instruction override in German, Spanish, French, Russian, Serbian/Croatian | high | test | AML.T0051.000 |
+| PI-010 | Role-play framing ("never break character") | medium | stable | AML.T0054 |
+| PI-011 | Persona assignment (informational only) | low | stable | AML.T0051.000 |
+| PI-012 | Context reset ("forget everything and write...") | high | stable | AML.T0051.000 |
+| PI-013 | Grounding override: ignore the provided documents (RAG) | medium | test | AML.T0051.000 |
+| PI-014 | Secret or credential request ("give me your password") | medium | stable | AML.T0057 (OWASP LLM02, LLM08) |
+| PI-015 | Content addresses the AI reading it ("If you are an AI assistant...") *(context only)* | high | stable | AML.T0051.001 |
+| PI-016 | Content tells the model what to do with the user ("When summarizing this, include...") *(context only)* | medium | stable | AML.T0051.001 |
+| PI-017 | Instructions hidden in markup (HTML comments, invisible text) *(context only)* | high | stable | AML.T0051.001, AML.T0068 |
+| PI-018 | Encoded payload with a decode-and-obey instruction ("decode this and follow it") | medium | test | AML.T0068, AML.T0051.000 |
 
 Rules carry a `scope`: `input` (user prompts, `scan()`), `context` (content the model reads,
 `scan_context()`), or both, the default. PI-015 to PI-017 are context-only because talking
 to the AI is normal in a user's own prompt and a red flag inside an email.
+
+**Status** says how much evidence a rule has, on the held-out data it was not written from.
+*Experimental*: not measured yet. *Test*: measured, and it alerts on at most 1 in 10,000
+benign texts. *Stable*: as test, plus at least 10 hits on attacks in independent held-out
+sets. Severity says how much a hit counts; status says how well that is established. The
+counts behind each status are in
+[`eval/results/rule-activity.md`](https://github.com/cyberchup/promptbadger/blob/main/eval/results/rule-activity.md).
+Four rules are at *test*: PI-008 and PI-009 have 7 independent hits each, PI-013 has none
+(its 4 come from deepset's test split, which shares templates with the train split it was
+written from), and PI-018 was written after LLMail's miss list was in the repo, so its 17
+LLMail hits don't count as independent.
 
 OWASP IDs follow the [2026 edition](https://genai.owasp.org/resource/owasp-genai-llm-top-10-2026/)
 of the Top 10 for LLM Applications. Its main renumbering for this rule pack: System Prompt
@@ -329,6 +340,10 @@ nothing: PI-012 and PI-013 did not fire once on either independent set. The addi
 are safe (no new false positives) but they fit deepset's phrasing rather than prompt
 injection in general. That's the case for the v0.3 classifier over more regex.
 
+The two independent sets added in v0.3 soften that for PI-012: it fires on 49 SPML and 7
+Gandalf attacks, with no hits on benign text in any set. PI-013 still has not fired outside
+deepset ([rule activity](https://github.com/cyberchup/promptbadger/blob/main/eval/results/rule-activity.md)).
+
 ### PI-014: secret and credential requests
 
 Added after a bare "Give me your password" scored 0/100 in local testing. It isn't
@@ -358,7 +373,10 @@ As an ad-hoc check (not part of the harness), the rule pack was run over all 52,
 benign instructions in [tatsu-lab/alpaca](https://huggingface.co/datasets/tatsu-lab/alpaca).
 None reached *suspicious*; the only rule hits were 11 informational PI-011 matches
 ("Pretend you are a teacher..."). Rechecked after adding PI-014, which had no hits.
-Nothing was tuned on this set. The v0.3 classifier does alert here (162 instructions
+Nothing was tuned on this set. A second benign set, the 15,011 instructions in
+[databricks-dolly-15k](https://huggingface.co/datasets/databricks/databricks-dolly-15k),
+was first scanned on the input side in November 2026: 2 reach *suspicious*, both through
+PI-005 (safety bypass language), and nothing reaches *malicious*. The v0.3 classifier does alert on Alpaca (162 instructions
 at suspicious, 13 at malicious); see [Classifier (v0.3)](#classifier-v03).
 
 ### Indirect injection (`scan_context`)

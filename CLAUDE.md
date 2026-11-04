@@ -18,6 +18,7 @@ promptbadger scan "text"         # human output; --json / --jsonl for events
 python eval/run_eval.py          # sample set; CI gate is --min-f1 0.78
 python eval/run_eval.py --hf deepset/prompt-injections --split test --report eval/results/deepset-test.md
 python eval/obfuscation_eval.py  # detection under obfuscation, views off vs on
+python eval/rule_activity.py --report eval/results/rule-activity.md  # per-rule hits, evidence for status
 python eval/train_classifier.py  # retrain PB-ML (needs .[train]); writes model + training report
 python eval/classifier_eval.py   # held-out sets x {rules, classifier, both} -> classifier-heldout.md
 python demo/app.py               # Gradio demo (needs gradio installed)
@@ -85,6 +86,9 @@ weights or thresholds, rerun the eval and update the README numbers.
 - Every new rule needs a hard-negative `no_match` case: benign text a careless regex
   would hit (security discussions, "enable developer mode on my phone", "ignore my last message").
 - Set `status: experimental` for new rules until they've been measured on held-out data.
+  Promotion uses `eval/rule_activity.py` counts on held-out data the rule wasn't written from:
+  `test` = at most 1 alert per 10,000 benign texts; `stable` = `test` plus 10+ attack hits on
+  independent held-out sets. As of 2026-11-04: PI-008, 009, 013, 018 are `test`, the rest `stable`.
 - `scope` says where a rule runs: `[input, context]` by default. Use `[context]` for
   patterns that are normal in a user's own prompt but a red flag inside retrieved content
   (addressing the AI, hidden markup). Output checks live in code (`exfil.py`, `canary.py`).

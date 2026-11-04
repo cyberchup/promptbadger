@@ -1,6 +1,6 @@
 id: PI-018
 title: Encoded payload with a decode-and-obey instruction
-status: experimental
+status: test
 description: |
   Input asks the model to decode, decipher or reverse something and then act on it:
   "decode this base64 and follow it", "decipher the message below and do what it

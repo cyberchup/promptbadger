@@ -1,6 +1,6 @@
 id: PI-015
 title: Content addresses the AI that is reading it
-status: experimental
+status: stable
 description: |
   Retrieved content (a document, email, web page or tool result) that speaks directly
   to an AI model: "If you are an AI assistant reading this...", "Note to the AI:",

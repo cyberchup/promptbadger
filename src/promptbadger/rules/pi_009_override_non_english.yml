@@ -1,6 +1,6 @@
 id: PI-009
 title: Instruction override - non-English (DE/ES/FR/RU/BCS)
-status: experimental
+status: test
 description: |
   German, Spanish, French, Russian and Serbian/Croatian/Bosnian equivalents of
   PI-001 and PI-012. Attackers switch language because English-only filters miss

@@ -45,7 +45,11 @@ Conventions the tests can't check:
 - **Add a hard negative.** At least one `no_match` case should be benign text a careless
   regex would hit: a security discussion quoting an attack, "enable developer mode on my
   phone", "ignore my last message".
-- **Start as `status: experimental`** until the rule has been measured on held-out data.
+- **Start as `status: experimental`.** Promotion is decided from the counts in
+  `eval/results/rule-activity.md` (`python eval/rule_activity.py`), on held-out data the
+  rule wasn't written from. `test`: it alerts on at most 1 in 10,000 benign texts.
+  `stable`: as `test`, plus at least 10 hits on attacks in independent held-out sets.
+  Never change a rule to reach a status.
 - **Set `scope`** if the rule only makes sense in one place. The default is
   `[input, context]`; use `[context]` for text that is normal in a user's own prompt but a
   red flag inside a retrieved document or email (addressing the AI, hidden markup).

@@ -1,6 +1,6 @@
 id: PI-012
 title: Instruction override - context reset phrasing
-status: experimental
+status: stable
 description: |
   Input wipes the conversation's earlier context without naming "instructions",
   so PI-001 misses it: "forget everything and write...", "leave all previous

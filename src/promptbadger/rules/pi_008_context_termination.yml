@@ -1,6 +1,6 @@
 id: PI-008
 title: Context termination preamble
-status: experimental
+status: test
 description: |
   Short "wrap-up" phrases that pretend the previous task is finished ("Well done!
   That's enough. Now...", "Attention - stop -") so the next sentence reads as a

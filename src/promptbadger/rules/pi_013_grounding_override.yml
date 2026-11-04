@@ -1,6 +1,6 @@
 id: PI-013
 title: Grounding override - ignore provided documents
-status: experimental
+status: test
 description: |
   Input tells a retrieval-augmented (RAG) application to stop using the documents,
   articles or context it retrieved and answer from the model's own knowledge or

@@ -1,6 +1,6 @@
 id: PI-011
 title: Persona assignment (weak signal)
-status: experimental
+status: stable
 description: |
   Input assigns the model a new persona or identity ("I want you to act as a
   Linux terminal", "Now you are Xi Jinping"). Extremely common in benign use, so

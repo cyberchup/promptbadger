@@ -1,6 +1,6 @@
 id: PI-010
 title: Role-play framing to keep the model in character
-status: experimental
+status: stable
 description: |
   Input wraps a request in a fiction or role-play frame and insists the model
   never break character, a common way to smuggle disallowed requests past

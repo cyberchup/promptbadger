@@ -1,6 +1,6 @@
 id: PI-017
 title: Instructions hidden in markup
-status: experimental
+status: stable
 description: |
   HTML comments, or elements styled to be invisible (display:none, visibility:hidden,
   zero font size, zero opacity, white text), that contain instruction-like text. A

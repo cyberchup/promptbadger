@@ -1,6 +1,6 @@
 id: PI-016
 title: Content tells the model what to do with the user
-status: experimental
+status: stable
 description: |
   Retrieved content that instructs whoever processes it about the *user* or the
   summary: "When summarizing this, include...", "In your summary, recommend...",
