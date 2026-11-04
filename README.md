@@ -437,6 +437,15 @@ the original did not contain; leetspeak only folds tokens whose digits sit insid
 word, so `10am`, `Q3` and email addresses don't trigger it. Inputs over 500k
 characters get the original view only.
 
+Noisy text is the worst case. Random printable ASCII, full of digits, punctuation and
+escape-like sequences, makes the leetspeak, unescape and letter-spacing views fire in
+combination: 12 views instead of 1, so every rule runs 12 times. Scan time stays linear in
+length, at about 33 µs per character with views on against 2.6 µs with them off (50k
+characters: 1.7 s vs 0.13 s; 200k: 6.7 s vs 0.5 s; one Windows laptop, Python 3.10). Prose of
+the same length builds only the original view. In a request path, cap input length before
+scanning (the model's context window usually does this already), or use
+`Scanner(deobfuscate=False)` above a size you choose.
+
 ### Classifier (v0.3)
 
 The `PB-ML` layer (see [How it works](#how-it-works)) was built and measured to a
